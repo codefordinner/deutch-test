@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тренажёр немецкого</title>
+<link rel="stylesheet" href="/css/style.css">
+<script src="/js/theme.js"></script>
+</head>
+<body>
+
+<button class="theme-toggle" id="theme-toggle" aria-label="Сменить тему">🌙</button>
+
+<div class="wrap">
+  <h1>Тренажёр немецкого</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="numbers">Числа</button>
+    <button class="tab-btn" data-tab="words">Слова</button>
+  </div>
+
+  <!-- ===== NUMBERS PANEL ===== -->
+  <div class="panel active" id="panel-numbers">
+    <div class="card">
+      <div class="settings">
+        <div>
+          <p class="label">Диапазоны чисел</p>
+          <div class="row">
+            <label><input type="checkbox" class="num-range-cb" value="0-12" checked>0–12</label>
+            <label><input type="checkbox" class="num-range-cb" value="13-19">13–19</label>
+            <label><input type="checkbox" class="num-range-cb" value="20-99">20–99</label>
+            <label><input type="checkbox" class="num-range-cb" value="100-999">100–999</label>
+            <label><input type="checkbox" class="num-range-cb" value="1000-10000">1000–10000</label>
+          </div>
+        </div>
+        <div>
+          <p class="label">Направление</p>
+          <div class="row">
+            <label><input type="checkbox" class="num-dir-cb" value="n2w" checked>Цифра → слово</label>
+            <label><input type="checkbox" class="num-dir-cb" value="w2n" checked>Слово → цифра</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz">
+        <p class="prev-result" id="num-prev-result" aria-live="polite"></p>
+        <p class="qmode" id="num-qmode">Число → слово</p>
+        <p class="question" id="num-question">7</p>
+        <input class="answer-input" id="num-answer" type="text" placeholder="Введите ответ" autocomplete="off" aria-label="Ваш ответ">
+        <div class="umlauts">
+          <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ä" aria-label="Вставить ä">ä</button>
+          <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ö" aria-label="Вставить ö">ö</button>
+          <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ü" aria-label="Вставить ü">ü</button>
+          <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ß" aria-label="Вставить ß">ß</button>
+        </div>
+        <div class="buttons">
+          <button id="num-check-btn">Проверить</button>
+          <button id="num-next-btn">Дальше ↦</button>
+        </div>
+        <p class="feedback" id="num-feedback" aria-live="polite" role="status"></p>
+      </div>
+
+      <div class="scorebar">
+        <span>Верно: <b id="num-score-correct">0</b></span>
+        <span>Всего: <b id="num-score-total">0</b></span>
+        <span>Точность: <b id="num-score-percent">0%</b></span>
+        <span>Серия: <b id="num-streak">0</b></span>
+        <span>Лучшая серия: <b id="num-best-streak">0</b></span>
+        <button class="reset-btn" id="num-reset-btn">Сбросить счёт</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== WORDS PANEL ===== -->
+  <div class="panel" id="panel-words">
+    <div class="card">
+      <div class="settings">
+        <div>
+          <p class="label">Категории слов</p>
+          <div class="row" id="word-categories-row">
+            <span class="empty-note" style="padding:0;">загрузка…</span>
+          </div>
+        </div>
+        <div>
+          <p class="label">Направление</p>
+          <div class="row">
+            <label><input type="checkbox" class="word-dir-cb" value="de2ru" checked>Немецкий → русский</label>
+            <label><input type="checkbox" class="word-dir-cb" value="ru2de" checked>Русский → немецкий</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz" id="word-quiz-area">
+        <p class="prev-result" id="word-prev-result" aria-live="polite"></p>
+        <p class="qmode" id="word-qmode">Немецкий → русский</p>
+        <p class="question" id="word-question">—</p>
+        <input class="answer-input" id="word-answer" type="text" placeholder="Введите ответ" autocomplete="off" aria-label="Ваш ответ">
+        <div class="umlauts">
+          <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ä" aria-label="Вставить ä">ä</button>
+          <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ö" aria-label="Вставить ö">ö</button>
+          <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ü" aria-label="Вставить ü">ü</button>
+          <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ß" aria-label="Вставить ß">ß</button>
+        </div>
+        <div class="buttons">
+          <button id="word-check-btn">Проверить</button>
+          <button id="word-next-btn">Дальше ↦</button>
+        </div>
+        <p class="feedback" id="word-feedback" aria-live="polite" role="status"></p>
+      </div>
+
+      <div class="scorebar">
+        <span>Верно: <b id="word-score-correct">0</b></span>
+        <span>Всего: <b id="word-score-total">0</b></span>
+        <span>Точность: <b id="word-score-percent">0%</b></span>
+        <span>Серия: <b id="word-streak">0</b></span>
+        <span>Лучшая серия: <b id="word-best-streak">0</b></span>
+        <button class="reset-btn" id="word-reset-btn">Сбросить счёт</button>
+      </div>
+    </div>
+  </div>
+
+  <a class="admin-link" href="/admin.html">Админ-панель: добавить свои слова →</a>
+</div>
+
+<script src="/js/umlauts.js"></script>
+<script src="/js/quiz-engine.js"></script>
+<script src="/js/numbers.js"></script>
+<script src="/js/words.js"></script>
+<script src="/js/tabs.js"></script>
+</body>
+</html>

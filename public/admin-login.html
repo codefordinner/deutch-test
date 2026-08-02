@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вход в админ-панель</title>
+<link rel="stylesheet" href="/css/style.css">
+<script src="/js/theme.js"></script>
+</head>
+<body>
+
+<button class="theme-toggle" id="theme-toggle" aria-label="Сменить тему">🌙</button>
+
+<div class="wrap" style="max-width:360px;">
+  <a class="back-link" href="/index.html">← Назад к тренажёру</a>
+  <div class="card">
+    <h1>Вход в админ-панель</h1>
+    <div class="inline-form" style="flex-direction:column;">
+      <input type="password" id="password-input" placeholder="Пароль" autocomplete="current-password">
+      <button id="login-btn" style="width:100%;">Войти</button>
+    </div>
+    <p class="feedback" id="login-feedback"></p>
+  </div>
+</div>
+
+<script src="/js/admin-login.js"></script>
+</body>
+</html>

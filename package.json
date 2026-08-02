@@ -1,0 +1,13 @@
+{
+  "name": "german-trainer",
+  "version": "1.0.0",
+  "description": "Локальный тренажёр немецких числительных и слов с админ-панелью",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.19.0"
+  }
+}

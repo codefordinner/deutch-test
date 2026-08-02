@@ -1,0 +1,199 @@
+// Общий "движок" для обоих режимов тренажёра (числа и слова).
+// Каждый режим передаёт сюда только то, что у него уникально:
+// - pickNext(state): выбрать следующий вопрос, вернуть произвольный объект
+//   (или null/undefined, если вопросов нет — например, не выбрано ни одной категории)
+// - render(current, elements): вывести вопрос на экран
+// - checkAnswer(userValue, current): вернуть { isCorrect, correctText }
+// - onEmpty(): необязательно, вызывается когда pickNext ничего не вернул
+(function (global) {
+  var STORAGE_PREFIX = "german-trainer-stats-";
+
+  function createQuiz(options) {
+    var prefix = options.prefix;
+    var storageKey = STORAGE_PREFIX + prefix;
+    var ids = {
+      prevResult: prefix + "-prev-result",
+      qmode: prefix + "-qmode",
+      question: prefix + "-question",
+      answer: prefix + "-answer",
+      feedback: prefix + "-feedback",
+      checkBtn: prefix + "-check-btn",
+      nextBtn: prefix + "-next-btn",
+      resetBtn: prefix + "-reset-btn",
+      scoreCorrect: prefix + "-score-correct",
+      scoreTotal: prefix + "-score-total",
+      scorePercent: prefix + "-score-percent",
+      streak: prefix + "-streak",
+      bestStreak: prefix + "-best-streak"
+    };
+
+    var state = {
+      correct: 0,
+      total: 0,
+      streak: 0,
+      bestStreak: 0,
+      answered: false,
+      lastResult: null,
+      current: null // текущий вопрос, формат задаёт сам режим (числа/слова)
+    };
+
+    function el(id) {
+      return document.getElementById(id);
+    }
+
+    // ---- сохранение счёта/серии между перезагрузками страницы ----
+
+    function loadSavedStats() {
+      try {
+        var raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        var saved = JSON.parse(raw);
+        if (typeof saved.correct === "number") state.correct = saved.correct;
+        if (typeof saved.total === "number") state.total = saved.total;
+        if (typeof saved.streak === "number") state.streak = saved.streak;
+        if (typeof saved.bestStreak === "number") state.bestStreak = saved.bestStreak;
+      } catch (e) {
+        // localStorage недоступен (приватный режим и т.п.) или данные повреждены — просто игнорируем
+      }
+    }
+
+    function saveStats() {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({
+          correct: state.correct,
+          total: state.total,
+          streak: state.streak,
+          bestStreak: state.bestStreak
+        }));
+      } catch (e) {
+        // недоступно — не критично, просто не переживёт перезагрузку
+      }
+    }
+
+    function renderScoreUI() {
+      var percent = state.total === 0 ? 0 : Math.round((state.correct / state.total) * 100);
+      el(ids.scoreCorrect).textContent = state.correct;
+      el(ids.scoreTotal).textContent = state.total;
+      el(ids.scorePercent).textContent = percent + "%";
+      el(ids.streak).textContent = state.streak;
+      el(ids.bestStreak).textContent = state.bestStreak;
+    }
+
+    function evaluateCurrent() {
+      if (state.answered || !state.current) return;
+      var userVal = el(ids.answer).value;
+      var result = options.checkAnswer(userVal, state.current);
+      state.answered = true;
+      state.total += 1;
+      if (result.isCorrect) {
+        state.correct += 1;
+        state.streak += 1;
+        if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+      } else {
+        state.streak = 0;
+      }
+      state.lastResult = { correct: result.isCorrect, answerText: result.correctText };
+      renderScoreUI();
+      saveStats();
+    }
+
+    function showFeedbackForCurrent() {
+      var fbEl = el(ids.feedback);
+      var ansEl = el(ids.answer);
+      if (!state.lastResult) return;
+      if (state.lastResult.correct) {
+        fbEl.textContent = "Верно: " + state.lastResult.answerText;
+        fbEl.style.color = "var(--success)";
+        ansEl.style.borderColor = "var(--success-border)";
+      } else {
+        fbEl.textContent = "Неверно. Правильно: " + state.lastResult.answerText;
+        fbEl.style.color = "var(--danger)";
+        ansEl.style.borderColor = "var(--danger-border)";
+      }
+    }
+
+    function renderPrevResult() {
+      var prevEl = el(ids.prevResult);
+      if (!state.lastResult) {
+        prevEl.textContent = "";
+        return;
+      }
+      if (state.lastResult.correct) {
+        prevEl.textContent = "Прошлый ответ верный: " + state.lastResult.answerText;
+        prevEl.style.color = "var(--success)";
+      } else {
+        prevEl.textContent = "Прошлый ответ неверный. Было: " + state.lastResult.answerText;
+        prevEl.style.color = "var(--danger)";
+      }
+    }
+
+    // skipEvaluation=true используется при самом первом вопросе и при смене
+    // настроек (категории/диапазоны) — чтобы не засчитывать "неответ" как ошибку.
+    function newQuestion(skipEvaluation) {
+      if (!skipEvaluation && !state.answered && state.current) evaluateCurrent();
+      if (!skipEvaluation) renderPrevResult();
+
+      var next = options.pickNext(state);
+      if (!next) {
+        state.current = null;
+        if (options.onEmpty) options.onEmpty();
+        return;
+      }
+      state.current = next;
+      state.answered = false;
+
+      var ansEl = el(ids.answer);
+      var fbEl = el(ids.feedback);
+      ansEl.value = "";
+      fbEl.textContent = "";
+      ansEl.style.borderColor = "";
+
+      options.render(next, {
+        qEl: el(ids.question),
+        modeEl: el(ids.qmode),
+        ansEl: ansEl
+      });
+      ansEl.focus();
+    }
+
+    function resetScore() {
+      state.correct = 0;
+      state.total = 0;
+      state.streak = 0;
+      state.bestStreak = 0;
+      renderScoreUI();
+      saveStats();
+    }
+
+    loadSavedStats();
+    renderScoreUI();
+
+    el(ids.checkBtn).addEventListener("click", function () {
+      evaluateCurrent();
+      showFeedbackForCurrent();
+    });
+    // Обязательно оборачиваем в function(){}: если передать newQuestion
+    // напрямую в addEventListener, браузер подставит объект события первым
+    // аргументом, и он будет воспринят как skipEvaluation === true.
+    el(ids.nextBtn).addEventListener("click", function () { newQuestion(); });
+    el(ids.resetBtn).addEventListener("click", resetScore);
+    el(ids.answer).addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        if (!state.answered) {
+          evaluateCurrent();
+          showFeedbackForCurrent();
+        } else {
+          newQuestion();
+        }
+      }
+    });
+
+    return {
+      state: state,
+      newQuestion: newQuestion,
+      resetScore: resetScore
+    };
+  }
+
+  global.QuizEngine = { create: createQuiz };
+})(window);
