@@ -26,7 +26,34 @@
     </div>
   </div>
 
-  <div id="categories-container"></div>
+  <div class="admin-section" id="category-picker-section">
+    <h2>Категория для редактирования</h2>
+    <div class="category-select-row">
+      <select id="category-select" aria-label="Выбор категории"></select>
+      <button class="small-btn ghost-btn" id="rename-category-btn">Переименовать</button>
+      <button class="small-btn danger-btn" id="delete-category-btn">Удалить</button>
+    </div>
+  </div>
+
+  <p class="empty-note" id="no-categories-note" style="display:none;">Категорий пока нет. Добавь первую выше.</p>
+
+  <div class="admin-section" id="category-detail-section" style="display:none;">
+    <div class="inline-form">
+      <input type="text" id="new-word-de" placeholder="по-немецки">
+      <input type="text" id="new-word-ru" placeholder="перевод">
+      <button id="add-word-btn">Добавить слово</button>
+    </div>
+
+    <input type="text" id="word-filter-input" class="filter-input" placeholder="Поиск по словам в этой категории…">
+
+    <div class="word-table-wrap">
+      <table id="words-table">
+        <thead><tr><th>Немецкий</th><th>Перевод</th><th></th></tr></thead>
+        <tbody id="words-tbody"></tbody>
+      </table>
+    </div>
+    <p class="empty-note" id="words-empty-note" style="display:none;"></p>
+  </div>
 </div>
 
 <script src="/js/admin.js"></script>

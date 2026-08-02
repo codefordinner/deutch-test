@@ -22,24 +22,8 @@
   <!-- ===== NUMBERS PANEL ===== -->
   <div class="panel active" id="panel-numbers">
     <div class="card">
-      <div class="settings">
-        <div>
-          <p class="label">Диапазоны чисел</p>
-          <div class="row">
-            <label><input type="checkbox" class="num-range-cb" value="0-12" checked>0–12</label>
-            <label><input type="checkbox" class="num-range-cb" value="13-19">13–19</label>
-            <label><input type="checkbox" class="num-range-cb" value="20-99">20–99</label>
-            <label><input type="checkbox" class="num-range-cb" value="100-999">100–999</label>
-            <label><input type="checkbox" class="num-range-cb" value="1000-10000">1000–10000</label>
-          </div>
-        </div>
-        <div>
-          <p class="label">Направление</p>
-          <div class="row">
-            <label><input type="checkbox" class="num-dir-cb" value="n2w" checked>Цифра → слово</label>
-            <label><input type="checkbox" class="num-dir-cb" value="w2n" checked>Слово → цифра</label>
-          </div>
-        </div>
+      <div class="quiz-toolbar">
+        <button type="button" class="settings-trigger" data-modal="num-settings-modal">⚙ Параметры</button>
       </div>
 
       <div class="quiz">
@@ -74,20 +58,8 @@
   <!-- ===== WORDS PANEL ===== -->
   <div class="panel" id="panel-words">
     <div class="card">
-      <div class="settings">
-        <div>
-          <p class="label">Категории слов</p>
-          <div class="row" id="word-categories-row">
-            <span class="empty-note" style="padding:0;">загрузка…</span>
-          </div>
-        </div>
-        <div>
-          <p class="label">Направление</p>
-          <div class="row">
-            <label><input type="checkbox" class="word-dir-cb" value="de2ru" checked>Немецкий → русский</label>
-            <label><input type="checkbox" class="word-dir-cb" value="ru2de" checked>Русский → немецкий</label>
-          </div>
-        </div>
+      <div class="quiz-toolbar">
+        <button type="button" class="settings-trigger" data-modal="word-settings-modal">⚙ Параметры</button>
       </div>
 
       <div class="quiz" id="word-quiz-area">
@@ -122,10 +94,83 @@
   <a class="admin-link" href="/admin.html">Админ-панель: добавить свои слова →</a>
 </div>
 
+<!-- ===== SETTINGS MODAL — NUMBERS ===== -->
+<div class="modal-overlay hidden" id="num-settings-modal">
+  <div class="modal-box">
+    <h2>Параметры — числа</h2>
+
+    <div class="settings">
+      <div>
+        <p class="label">Диапазоны чисел</p>
+        <div class="row">
+          <label><input type="checkbox" class="num-range-cb" value="0-12" checked>0–12</label>
+          <label><input type="checkbox" class="num-range-cb" value="13-19">13–19</label>
+          <label><input type="checkbox" class="num-range-cb" value="20-99">20–99</label>
+          <label><input type="checkbox" class="num-range-cb" value="100-999">100–999</label>
+          <label><input type="checkbox" class="num-range-cb" value="1000-10000">1000–10000</label>
+        </div>
+      </div>
+      <div>
+        <p class="label">Направление</p>
+        <div class="row">
+          <label><input type="checkbox" class="num-dir-cb" value="n2w" checked>Цифра → слово</label>
+          <label><input type="checkbox" class="num-dir-cb" value="w2n" checked>Слово → цифра</label>
+        </div>
+      </div>
+      <div>
+        <p class="label">Дополнительно</p>
+        <div class="row" style="flex-direction:column; align-items:flex-start; gap:10px;">
+          <label><input type="checkbox" class="umlaut-toggle-cb" checked>Показывать кнопки умляутов (ä ö ü ß)</label>
+          <label><input type="checkbox" id="num-smart-cb">Умный подбор — чаще спрашивать то, где ошибаюсь</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-close-row">
+      <button type="button" class="js-modal-close ghost-btn">Готово</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS MODAL — WORDS ===== -->
+<div class="modal-overlay hidden" id="word-settings-modal">
+  <div class="modal-box">
+    <h2>Параметры — слова</h2>
+
+    <div class="settings">
+      <div>
+        <p class="label">Категории слов</p>
+        <div class="row" id="word-categories-row">
+          <span class="empty-note" style="padding:0;">загрузка…</span>
+        </div>
+      </div>
+      <div>
+        <p class="label">Направление</p>
+        <div class="row">
+          <label><input type="checkbox" class="word-dir-cb" value="de2ru" checked>Немецкий → русский</label>
+          <label><input type="checkbox" class="word-dir-cb" value="ru2de" checked>Русский → немецкий</label>
+        </div>
+      </div>
+      <div>
+        <p class="label">Дополнительно</p>
+        <div class="row" style="flex-direction:column; align-items:flex-start; gap:10px;">
+          <label><input type="checkbox" class="umlaut-toggle-cb" checked>Показывать кнопки умляутов (ä ö ü ß)</label>
+          <label><input type="checkbox" id="word-smart-cb">Умный подбор — чаще спрашивать то, где ошибаюсь</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-close-row">
+      <button type="button" class="js-modal-close ghost-btn">Готово</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/umlauts.js"></script>
 <script src="/js/quiz-engine.js"></script>
 <script src="/js/numbers.js"></script>
 <script src="/js/words.js"></script>
 <script src="/js/tabs.js"></script>
+<script src="/js/settings-modal.js"></script>
 </body>
 </html>

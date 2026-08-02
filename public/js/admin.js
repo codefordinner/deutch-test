@@ -1,5 +1,15 @@
 (function () {
-  var container = document.getElementById("categories-container");
+  var categories = [];
+  var selectedCategoryId = null;
+
+  var categorySelect = document.getElementById("category-select");
+  var pickerSection = document.getElementById("category-picker-section");
+  var noCategoriesNote = document.getElementById("no-categories-note");
+  var detailSection = document.getElementById("category-detail-section");
+  var filterInput = document.getElementById("word-filter-input");
+  var wordsTable = document.getElementById("words-table");
+  var wordsTbody = document.getElementById("words-tbody");
+  var wordsEmptyNote = document.getElementById("words-empty-note");
 
   function api(url, options) {
     return fetch(url, options).then(function (r) {
@@ -15,127 +25,87 @@
     });
   }
 
+  function currentCategory() {
+    return categories.find(function (c) { return c.id === selectedCategoryId; });
+  }
+
   function loadCategories() {
-    api("/api/categories").then(renderCategories).catch(function (e) {
-      container.innerHTML = "";
-      var p = document.createElement("p");
-      p.className = "empty-note";
-      p.textContent = "Не удалось загрузить: " + e.message;
-      container.appendChild(p);
+    api("/api/categories").then(function (data) {
+      categories = data;
+      if (categories.length === 0) {
+        selectedCategoryId = null;
+      } else if (!selectedCategoryId || !categories.some(function (c) { return c.id === selectedCategoryId; })) {
+        selectedCategoryId = categories[0].id;
+      }
+      renderCategorySelect();
+      renderCategoryDetail();
+    }).catch(function (e) {
+      pickerSection.style.display = "none";
+      detailSection.style.display = "none";
+      noCategoriesNote.style.display = "block";
+      noCategoriesNote.textContent = "Не удалось загрузить: " + e.message;
     });
   }
 
-  function renderCategories(categories) {
-    container.innerHTML = "";
+  function renderCategorySelect() {
     if (categories.length === 0) {
-      var p = document.createElement("p");
-      p.className = "empty-note";
-      p.textContent = "Категорий пока нет. Добавь первую выше.";
-      container.appendChild(p);
+      pickerSection.style.display = "none";
+      detailSection.style.display = "none";
+      noCategoriesNote.style.display = "block";
+      noCategoriesNote.textContent = "Категорий пока нет. Добавь первую выше.";
       return;
     }
+    noCategoriesNote.style.display = "none";
+    pickerSection.style.display = "block";
+    categorySelect.innerHTML = "";
     categories.forEach(function (cat) {
-      container.appendChild(buildCategoryBlock(cat));
+      var opt = document.createElement("option");
+      opt.value = cat.id;
+      opt.textContent = cat.name + " (" + cat.words.length + ")";
+      if (cat.id === selectedCategoryId) opt.selected = true;
+      categorySelect.appendChild(opt);
     });
   }
 
-  function buildCategoryBlock(cat) {
-    var block = document.createElement("div");
-    block.className = "admin-section category-block";
+  function renderCategoryDetail() {
+    var cat = currentCategory();
+    if (!cat) {
+      detailSection.style.display = "none";
+      return;
+    }
+    detailSection.style.display = "block";
+    renderWordsTable();
+  }
 
-    // header row: name + rename + delete
-    var titleRow = document.createElement("div");
-    titleRow.className = "category-title-row";
+  function renderWordsTable() {
+    var cat = currentCategory();
+    wordsTbody.innerHTML = "";
+    if (!cat) return;
 
-    var h3 = document.createElement("h3");
-    h3.textContent = cat.name + " (" + cat.words.length + ")";
-    titleRow.appendChild(h3);
-
-    var btnGroup = document.createElement("div");
-    btnGroup.style.display = "flex";
-    btnGroup.style.gap = "6px";
-
-    var renameBtn = document.createElement("button");
-    renameBtn.className = "small-btn ghost-btn";
-    renameBtn.textContent = "Переименовать";
-    renameBtn.addEventListener("click", function () {
-      var newName = prompt("Новое название категории:", cat.name);
-      if (newName === null) return;
-      newName = newName.trim();
-      if (!newName) return;
-      api("/api/categories/" + cat.id, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName })
-      }).then(loadCategories).catch(function (e) { alert(e.message); });
-    });
-
-    var deleteBtn = document.createElement("button");
-    deleteBtn.className = "small-btn danger-btn";
-    deleteBtn.textContent = "Удалить категорию";
-    deleteBtn.addEventListener("click", function () {
-      if (!confirm('Удалить категорию "' + cat.name + '" вместе со всеми словами?')) return;
-      api("/api/categories/" + cat.id, { method: "DELETE" })
-        .then(loadCategories)
-        .catch(function (e) { alert(e.message); });
-    });
-
-    btnGroup.appendChild(renameBtn);
-    btnGroup.appendChild(deleteBtn);
-    titleRow.appendChild(btnGroup);
-    block.appendChild(titleRow);
-
-    // add word form
-    var addForm = document.createElement("div");
-    addForm.className = "inline-form";
-
-    var deInput = document.createElement("input");
-    deInput.type = "text";
-    deInput.placeholder = "по-немецки";
-
-    var ruInput = document.createElement("input");
-    ruInput.type = "text";
-    ruInput.placeholder = "перевод";
-
-    var addWordBtn = document.createElement("button");
-    addWordBtn.textContent = "Добавить слово";
-    addWordBtn.addEventListener("click", function () {
-      var de = deInput.value.trim();
-      var ru = ruInput.value.trim();
-      if (!de || !ru) { alert("Заполни оба поля"); return; }
-      api("/api/categories/" + cat.id + "/words", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ de: de, ru: ru })
-      }).then(loadCategories).catch(function (e) { alert(e.message); });
-    });
-
-    addForm.appendChild(deInput);
-    addForm.appendChild(ruInput);
-    addForm.appendChild(addWordBtn);
-    block.appendChild(addForm);
-
-    // words table
-    if (cat.words.length > 0) {
-      var table = document.createElement("table");
-      var thead = document.createElement("thead");
-      thead.innerHTML = "<tr><th>Немецкий</th><th>Перевод</th><th></th></tr>";
-      table.appendChild(thead);
-
-      var tbody = document.createElement("tbody");
-      cat.words.forEach(function (word) {
-        tbody.appendChild(buildWordRow(word));
-      });
-      table.appendChild(tbody);
-      block.appendChild(table);
-    } else {
-      var emptyP = document.createElement("p");
-      emptyP.className = "empty-note";
-      emptyP.textContent = "В этой категории пока нет слов.";
-      block.appendChild(emptyP);
+    if (cat.words.length === 0) {
+      wordsTable.style.display = "none";
+      wordsEmptyNote.style.display = "block";
+      wordsEmptyNote.textContent = "В этой категории пока нет слов.";
+      return;
     }
 
-    return block;
+    var filterVal = filterInput.value.trim().toLowerCase();
+    var visibleWords = cat.words.filter(function (w) {
+      if (!filterVal) return true;
+      return w.de.toLowerCase().indexOf(filterVal) !== -1 || w.ru.toLowerCase().indexOf(filterVal) !== -1;
+    });
+
+    wordsTable.style.display = "table";
+    if (visibleWords.length === 0) {
+      wordsEmptyNote.style.display = "block";
+      wordsEmptyNote.textContent = "Ничего не найдено по запросу «" + filterInput.value.trim() + "».";
+    } else {
+      wordsEmptyNote.style.display = "none";
+    }
+
+    visibleWords.forEach(function (word) {
+      wordsTbody.appendChild(buildWordRow(word));
+    });
   }
 
   function buildWordRow(word) {
@@ -186,6 +156,65 @@
     return tr;
   }
 
+  // ---- category picker controls ----
+
+  categorySelect.addEventListener("change", function () {
+    selectedCategoryId = categorySelect.value;
+    filterInput.value = "";
+    renderCategoryDetail();
+  });
+
+  document.getElementById("rename-category-btn").addEventListener("click", function () {
+    var cat = currentCategory();
+    if (!cat) return;
+    var newName = prompt("Новое название категории:", cat.name);
+    if (newName === null) return;
+    newName = newName.trim();
+    if (!newName) return;
+    api("/api/categories/" + cat.id, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName })
+    }).then(loadCategories).catch(function (e) { alert(e.message); });
+  });
+
+  document.getElementById("delete-category-btn").addEventListener("click", function () {
+    var cat = currentCategory();
+    if (!cat) return;
+    if (!confirm('Удалить категорию "' + cat.name + '" вместе со всеми словами?')) return;
+    api("/api/categories/" + cat.id, { method: "DELETE" })
+      .then(function () {
+        selectedCategoryId = null;
+        loadCategories();
+      })
+      .catch(function (e) { alert(e.message); });
+  });
+
+  filterInput.addEventListener("input", renderWordsTable);
+
+  // ---- add word to currently selected category ----
+
+  document.getElementById("add-word-btn").addEventListener("click", function () {
+    var cat = currentCategory();
+    if (!cat) return;
+    var deInput = document.getElementById("new-word-de");
+    var ruInput = document.getElementById("new-word-ru");
+    var de = deInput.value.trim();
+    var ru = ruInput.value.trim();
+    if (!de || !ru) { alert("Заполни оба поля"); return; }
+    api("/api/categories/" + cat.id + "/words", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ de: de, ru: ru })
+    }).then(function () {
+      deInput.value = "";
+      ruInput.value = "";
+      loadCategories();
+    }).catch(function (e) { alert(e.message); });
+  });
+
+  // ---- new category ----
+
   document.getElementById("add-category-btn").addEventListener("click", function () {
     var input = document.getElementById("new-category-name");
     var name = input.value.trim();
@@ -194,8 +223,9 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name })
-    }).then(function () {
+    }).then(function (newCat) {
       input.value = "";
+      selectedCategoryId = newCat.id;
       loadCategories();
     }).catch(function (e) { alert(e.message); });
   });

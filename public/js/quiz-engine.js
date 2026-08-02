@@ -5,8 +5,76 @@
 // - render(current, elements): вывести вопрос на экран
 // - checkAnswer(userValue, current): вернуть { isCorrect, correctText }
 // - onEmpty(): необязательно, вызывается когда pickNext ничего не вернул
+// - weightId(current): необязательно, вернуть строковый id вопроса для
+//   режима "умный подбор" — по этому id копится счётчик ошибок
 (function (global) {
   var STORAGE_PREFIX = "german-trainer-stats-";
+  var WEIGHTS_PREFIX = "german-trainer-weights-";
+
+  // ---- умный подбор: хранение "сколько раз подряд/всего ошибались" по id ----
+  // Данные живут в localStorage браузера (как и счёт/тема) — это не куки,
+  // но работает точно так же: сохраняется на этом устройстве между визитами.
+
+  function getWeights(prefix) {
+    try {
+      var raw = localStorage.getItem(WEIGHTS_PREFIX + prefix);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveWeights(prefix, weights) {
+    try {
+      localStorage.setItem(WEIGHTS_PREFIX + prefix, JSON.stringify(weights));
+    } catch (e) {
+      // недоступно — не критично
+    }
+  }
+
+  function updateWeight(prefix, id, isCorrect) {
+    if (!id) return;
+    var weights = getWeights(prefix);
+    var current = weights[id] || 0;
+    if (isCorrect) {
+      current = Math.max(0, current - 1);
+    } else {
+      current = current + 2;
+    }
+    if (current === 0) {
+      delete weights[id];
+    } else {
+      weights[id] = current;
+    }
+    saveWeights(prefix, weights);
+  }
+
+  // Взвешенный случайный выбор из массива items.
+  // idFn(item) -> строковый id, weights[id] -> "сколько ошибок" (0 если нет записи).
+  // excludeId — id последнего вопроса, чтобы не повторять его подряд (если возможно).
+  function weightedPick(items, idFn, weights, excludeId) {
+    if (items.length === 0) return null;
+    if (items.length === 1) return items[0];
+    var candidates = items;
+    if (excludeId != null) {
+      var filtered = items.filter(function (it) { return idFn(it) !== excludeId; });
+      if (filtered.length > 0) candidates = filtered;
+    }
+    var total = 0;
+    var weighted = candidates.map(function (it) {
+      var w = 1 + (weights[idFn(it)] || 0) * 3;
+      total += w;
+      return { item: it, w: w };
+    });
+    var r = Math.random() * total;
+    for (var i = 0; i < weighted.length; i++) {
+      r -= weighted[i].w;
+      if (r <= 0) return weighted[i].item;
+    }
+    return weighted[weighted.length - 1].item;
+  }
 
   function createQuiz(options) {
     var prefix = options.prefix;
@@ -95,6 +163,10 @@
       state.lastResult = { correct: result.isCorrect, answerText: result.correctText };
       renderScoreUI();
       saveStats();
+      if (options.weightId) {
+        var wid = options.weightId(state.current);
+        if (wid) updateWeight(prefix, wid, result.isCorrect);
+      }
     }
 
     function showFeedbackForCurrent() {
@@ -195,5 +267,9 @@
     };
   }
 
-  global.QuizEngine = { create: createQuiz };
+  global.QuizEngine = {
+    create: createQuiz,
+    getWeights: getWeights,
+    weightedPick: weightedPick
+  };
 })(window);

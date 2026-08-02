@@ -1,4 +1,6 @@
 (function () {
+  var SMART_KEY = "german-trainer-smart-num";
+
   var ones = ["null","eins","zwei","drei","vier","fünf","sechs","sieben","acht","neun","zehn",
     "elf","zwölf","dreizehn","vierzehn","fünfzehn","sechzehn","siebzehn","achtzehn","neunzehn"];
   var tensWords = {20:"zwanzig",30:"dreißig",40:"vierzig",50:"fünfzig",60:"sechzig",70:"siebzig",80:"achtzig",90:"neunzig"};
@@ -77,6 +79,74 @@
     return candidate;
   }
 
+  function countInRanges(ranges) {
+    var total = 0;
+    ranges.forEach(function (r) {
+      var b = r.split("-").map(Number);
+      total += (b[1] - b[0] + 1);
+    });
+    return total;
+  }
+
+  function numberInRanges(n, ranges) {
+    return ranges.some(function (r) {
+      var b = r.split("-").map(Number);
+      return n >= b[0] && n <= b[1];
+    });
+  }
+
+  // "Умный подбор": числа, в которых чаще ошибались, выпадают заметно чаще,
+  // но остальные тоже продолжают встречаться — без полного перебора диапазона.
+  function pickNumberSmart(ranges, weights, lastNumber) {
+    var weakKeys = Object.keys(weights).filter(function (k) {
+      return weights[k] > 0 && numberInRanges(Number(k), ranges);
+    });
+    if (weakKeys.length === 0) return pickNumber(ranges, lastNumber);
+
+    var totalCount = countInRanges(ranges);
+    var weakTotalWeight = weakKeys.reduce(function (s, k) { return s + 1 + weights[k] * 3; }, 0);
+    var r = Math.random() * (weakTotalWeight + totalCount);
+
+    if (r >= weakTotalWeight) return pickNumber(ranges, lastNumber);
+
+    var candidates = weakKeys;
+    if (weakKeys.length > 1 && lastNumber != null) {
+      var filtered = weakKeys.filter(function (k) { return Number(k) !== lastNumber; });
+      if (filtered.length > 0) candidates = filtered;
+    }
+    var total = 0;
+    var weighted = candidates.map(function (k) {
+      var w = 1 + weights[k] * 3;
+      total += w;
+      return { k: k, w: w };
+    });
+    var rr = Math.random() * total;
+    for (var i = 0; i < weighted.length; i++) {
+      rr -= weighted[i].w;
+      if (rr <= 0) return Number(weighted[i].k);
+    }
+    return Number(weighted[weighted.length - 1].k);
+  }
+
+  function loadSmartEnabled() {
+    try {
+      return localStorage.getItem(SMART_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function saveSmartEnabled(val) {
+    try {
+      localStorage.setItem(SMART_KEY, val ? "1" : "0");
+    } catch (e) {
+      // недоступно — не критично
+    }
+  }
+
+  var smartCb = document.getElementById("num-smart-cb");
+  if (smartCb) smartCb.checked = loadSmartEnabled();
+
   var quiz = QuizEngine.create({
     prefix: "num",
 
@@ -84,7 +154,9 @@
       var ranges = getRanges();
       var dirs = getDirs();
       var lastNumber = state.current ? state.current.number : null;
-      var number = pickNumber(ranges, lastNumber);
+      var number = (smartCb && smartCb.checked)
+        ? pickNumberSmart(ranges, QuizEngine.getWeights("num"), lastNumber)
+        : pickNumber(ranges, lastNumber);
       var dir = dirs[Math.floor(Math.random() * dirs.length)];
       return { number: number, dir: dir };
     },
@@ -111,8 +183,18 @@
         isCorrect = userVal.trim() === correctText;
       }
       return { isCorrect: isCorrect, correctText: correctText };
+    },
+
+    weightId: function (current) {
+      return String(current.number);
     }
   });
+
+  if (smartCb) {
+    smartCb.addEventListener("change", function () {
+      saveSmartEnabled(smartCb.checked);
+    });
+  }
 
   quiz.newQuestion(true);
 })();

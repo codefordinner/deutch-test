@@ -1,4 +1,5 @@
 (function () {
+  var SMART_KEY = "german-trainer-smart-word";
   var categories = [];
 
   function normalize(s) {
@@ -69,7 +70,8 @@
     area.style.pointerEvents = enabled ? "auto" : "none";
   }
 
-  function pickWord(pool, lastWordId) {
+  // Без "умного подбора": просто без повтора подряд.
+  function pickWordPlain(pool, lastWordId) {
     if (pool.length === 1) return pool[0];
     var candidate;
     do {
@@ -77,6 +79,27 @@
     } while (candidate.id === lastWordId);
     return candidate;
   }
+
+  function wordId(w) { return w.id; }
+
+  function loadSmartEnabled() {
+    try {
+      return localStorage.getItem(SMART_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function saveSmartEnabled(val) {
+    try {
+      localStorage.setItem(SMART_KEY, val ? "1" : "0");
+    } catch (e) {
+      // недоступно — не критично
+    }
+  }
+
+  var smartCb = document.getElementById("word-smart-cb");
+  if (smartCb) smartCb.checked = loadSmartEnabled();
 
   var quiz = QuizEngine.create({
     prefix: "word",
@@ -86,7 +109,9 @@
       if (pool.length === 0) return null;
       var dirs = getDirs();
       var lastWordId = state.current ? state.current.word.id : null;
-      var word = pickWord(pool, lastWordId);
+      var word = (smartCb && smartCb.checked)
+        ? QuizEngine.weightedPick(pool, wordId, QuizEngine.getWeights("word"), lastWordId)
+        : pickWordPlain(pool, lastWordId);
       var dir = dirs[Math.floor(Math.random() * dirs.length)];
       return { word: word, dir: dir };
     },
@@ -107,6 +132,10 @@
       var correctText = current.dir === "de2ru" ? current.word.ru : current.word.de;
       var isCorrect = matchesAnyAlternative(userVal, correctText);
       return { isCorrect: isCorrect, correctText: correctText };
+    },
+
+    weightId: function (current) {
+      return current.word.id;
     },
 
     onEmpty: function () {
@@ -143,6 +172,12 @@
   document.querySelectorAll(".word-dir-cb").forEach(function (cb) {
     cb.addEventListener("change", onSettingsChanged);
   });
+
+  if (smartCb) {
+    smartCb.addEventListener("change", function () {
+      saveSmartEnabled(smartCb.checked);
+    });
+  }
 
   loadCategories();
 })();
