@@ -79,53 +79,31 @@
     return candidate;
   }
 
-  function countInRanges(ranges) {
-    var total = 0;
+  // Полный список чисел в выбранных диапазонах — нужен только для "умного
+  // подбора" (чтобы честно взвесить каждое число через общий
+  // QuizEngine.weightedPick, как это уже делают слова).
+  function numbersInRanges(ranges) {
+    var nums = [];
     ranges.forEach(function (r) {
       var b = r.split("-").map(Number);
-      total += (b[1] - b[0] + 1);
+      for (var n = b[0]; n <= b[1]; n++) nums.push(n);
     });
-    return total;
+    return nums;
   }
 
-  function numberInRanges(n, ranges) {
-    return ranges.some(function (r) {
-      var b = r.split("-").map(Number);
-      return n >= b[0] && n <= b[1];
-    });
+  function numId(n) {
+    return String(n);
   }
 
   // "Умный подбор": числа, в которых чаще ошибались, выпадают заметно чаще,
-  // но остальные тоже продолжают встречаться — без полного перебора диапазона.
+  // но остальные тоже продолжают встречаться, а суммарная вероятность
+  // "слабых" чисел ограничена (см. MAX_EXTRA_RATIO в quiz-engine.js) — без
+  // полного перебора диапазона и без риска, что одно число будет выпадать
+  // почти всегда.
   function pickNumberSmart(ranges, weights, lastNumber) {
-    var weakKeys = Object.keys(weights).filter(function (k) {
-      return weights[k] > 0 && numberInRanges(Number(k), ranges);
-    });
-    if (weakKeys.length === 0) return pickNumber(ranges, lastNumber);
-
-    var totalCount = countInRanges(ranges);
-    var weakTotalWeight = weakKeys.reduce(function (s, k) { return s + 1 + weights[k] * 3; }, 0);
-    var r = Math.random() * (weakTotalWeight + totalCount);
-
-    if (r >= weakTotalWeight) return pickNumber(ranges, lastNumber);
-
-    var candidates = weakKeys;
-    if (weakKeys.length > 1 && lastNumber != null) {
-      var filtered = weakKeys.filter(function (k) { return Number(k) !== lastNumber; });
-      if (filtered.length > 0) candidates = filtered;
-    }
-    var total = 0;
-    var weighted = candidates.map(function (k) {
-      var w = 1 + weights[k] * 3;
-      total += w;
-      return { k: k, w: w };
-    });
-    var rr = Math.random() * total;
-    for (var i = 0; i < weighted.length; i++) {
-      rr -= weighted[i].w;
-      if (rr <= 0) return Number(weighted[i].k);
-    }
-    return Number(weighted[weighted.length - 1].k);
+    var pool = numbersInRanges(ranges);
+    var excludeId = lastNumber != null ? numId(lastNumber) : null;
+    return QuizEngine.weightedPick(pool, numId, weights, excludeId);
   }
 
   function loadSmartEnabled() {
@@ -193,6 +171,14 @@
   if (smartCb) {
     smartCb.addEventListener("change", function () {
       saveSmartEnabled(smartCb.checked);
+    });
+  }
+
+  var numWeightsResetBtn = document.getElementById("num-weights-reset-btn");
+  if (numWeightsResetBtn) {
+    numWeightsResetBtn.addEventListener("click", function () {
+      if (!confirm("Сбросить статистику ошибок для чисел? Умный подбор начнёт заново.")) return;
+      QuizEngine.resetWeights("num");
     });
   }
 

@@ -51,9 +51,30 @@
     saveWeights(prefix, weights);
   }
 
+  // Полностью стирает накопленную статистику ошибок для режима (num/word) —
+  // используется кнопкой "Сбросить статистику ошибок" в параметрах.
+  function resetWeights(prefix) {
+    try {
+      localStorage.removeItem(WEIGHTS_PREFIX + prefix);
+    } catch (e) {
+      // недоступно — не критично
+    }
+  }
+
+  // На сколько единиц веса добавляет одна "ошибка" (см. updateWeight выше).
+  var BOOST_PER_MISTAKE = 3;
+  // Суммарный "лишний" вес от всех вопросов с ошибками не может превышать
+  // вес обычной (безошибочной) выборки — то есть вероятность вытащить
+  // какой-нибудь "слабый" вопрос ограничена примерно 50%, сколько бы в нём
+  // ни было ошибок и как бы мала ни была сама выборка. Без этого одно и то
+  // же слово в маленькой категории могло бы выпадать почти в каждом вопросе,
+  // и чем чаще оно выпадает — тем выше шанс снова ошибиться и раздуть вес
+  // ещё сильнее.
+  var MAX_EXTRA_RATIO = 1;
+
   // Взвешенный случайный выбор из массива items.
   // idFn(item) -> строковый id, weights[id] -> "сколько ошибок" (0 если нет записи).
-  // excludeId — id последнего вопроса, чтобы не повторять его подряд (если возможно).
+  // excludeId — id последнего вопроса (строка!), чтобы не повторять его подряд (если возможно).
   function weightedPick(items, idFn, weights, excludeId) {
     if (items.length === 0) return null;
     if (items.length === 1) return items[0];
@@ -62,12 +83,25 @@
       var filtered = items.filter(function (it) { return idFn(it) !== excludeId; });
       if (filtered.length > 0) candidates = filtered;
     }
-    var total = 0;
-    var weighted = candidates.map(function (it) {
-      var w = 1 + (weights[idFn(it)] || 0) * 3;
-      total += w;
-      return { item: it, w: w };
+
+    var baseline = candidates.length; // у каждого вопроса базовый вес 1
+    var rawExtras = candidates.map(function (it) {
+      return (weights[idFn(it)] || 0) * BOOST_PER_MISTAKE;
     });
+    var totalExtra = rawExtras.reduce(function (s, e) { return s + e; }, 0);
+    var maxExtra = baseline * MAX_EXTRA_RATIO;
+    // Если суммарный "бонус" от ошибок больше разрешённого — пропорционально
+    // уменьшаем его для всех сразу (соотношение между самими слабыми
+    // вопросами при этом сохраняется).
+    var scale = totalExtra > maxExtra && totalExtra > 0 ? maxExtra / totalExtra : 1;
+
+    var total = 0;
+    var weighted = rawExtras.map(function (extra, idx) {
+      var w = 1 + extra * scale;
+      total += w;
+      return { item: candidates[idx], w: w };
+    });
+
     var r = Math.random() * total;
     for (var i = 0; i < weighted.length; i++) {
       r -= weighted[i].w;
@@ -270,6 +304,7 @@
   global.QuizEngine = {
     create: createQuiz,
     getWeights: getWeights,
-    weightedPick: weightedPick
+    weightedPick: weightedPick,
+    resetWeights: resetWeights
   };
 })(window);

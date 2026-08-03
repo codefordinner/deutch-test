@@ -179,5 +179,13 @@
     });
   }
 
+  var wordWeightsResetBtn = document.getElementById("word-weights-reset-btn");
+  if (wordWeightsResetBtn) {
+    wordWeightsResetBtn.addEventListener("click", function () {
+      if (!confirm("Сбросить статистику ошибок для слов? Умный подбор начнёт заново.")) return;
+      QuizEngine.resetWeights("word");
+    });
+  }
+
   loadCategories();
 })();
