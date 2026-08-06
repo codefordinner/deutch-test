@@ -1,0 +1,6 @@
+.git
+.env
+*.pem
+*.key
+data/db.json
+node_modules

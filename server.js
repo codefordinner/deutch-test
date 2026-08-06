@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const session = require("express-session");
 const fs = require("fs");
@@ -7,8 +9,9 @@ const crypto = require("crypto");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, "data", "db.json");
-const CONFIG_PATH = path.join(__dirname, "data", "config.json");
-const SESSION_SECRET = crypto.randomBytes(32).toString("hex");
+
+// Если SESSION_SECRET не задан в .env, генерируется случайный (для локальной разработки)
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 
 app.use(express.json());
 app.use(
@@ -31,11 +34,6 @@ function writeDb(db) {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), "utf-8");
 }
 
-function readConfig() {
-  const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-  return JSON.parse(raw);
-}
-
 function newId(prefix) {
   return prefix + "_" + crypto.randomBytes(6).toString("hex");
 }
@@ -49,8 +47,15 @@ function requireAdmin(req, res, next) {
 
 app.post("/api/admin/login", (req, res) => {
   const password = req.body.password || "";
-  const config = readConfig();
-  if (password === config.adminPassword) {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  // Проверка на случай, если забыли задать пароль в .env
+  if (!adminPassword) {
+    console.error("ОШИБКА: ADMIN_PASSWORD не задан в .env файле!");
+    return res.status(500).json({ error: "Ошибка конфигурации сервера" });
+  }
+
+  if (password === adminPassword) {
     req.session.isAdmin = true;
     return res.json({ ok: true });
   }
@@ -161,6 +166,6 @@ app.delete("/api/words/:id", requireAdmin, (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Тренажёр запущен: http://localhost:${PORT}`);
-  console.log(`Админ-панель:     http://localhost:${PORT}/admin.html`);
-  console.log(`Пароль админки задаётся в data/config.json`);
+  console.log(`Админ-панель:      http://localhost:${PORT}/admin.html`);
+  console.log(`Пароль админки считывается из файла .env`);
 });

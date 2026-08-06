@@ -2,11 +2,23 @@
   "name": "german-trainer",
   "version": "1.0.0",
   "description": "Локальный тренажёр немецких числительных и слов с админ-панелью",
+  "homepage": "https://github.com/codefordinner/deutch-test#readme",
+  "bugs": {
+    "url": "https://github.com/codefordinner/deutch-test/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codefordinner/deutch-test.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "express-session": "^1.19.0"
   }
