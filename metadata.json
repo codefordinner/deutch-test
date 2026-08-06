@@ -1,0 +1,8 @@
+{
+  "name": "German Language Trainer",
+  "description": "German numbers and vocabulary training app with admin management panel",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

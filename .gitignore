@@ -2,5 +2,6 @@
 .env
 *.pem
 *.key
-data/db.json
 node_modules
+data/*.db
+data/*.db-journal

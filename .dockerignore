@@ -1,3 +1,6 @@
 node_modules
 npm-debug.log
-data
+.git
+.env
+data/*.db
+data/*.db-journal

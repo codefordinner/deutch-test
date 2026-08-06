@@ -5,6 +5,9 @@ services:
     build: .
     container_name: web_trainer_app
     restart: always
-    network_mode: host  # <--- Использовать сеть хоста напрямую
+    network_mode: host
+    environment:
+      - DATABASE_URL=file:/app/data/dev.db
+      - PORT=3000
     volumes:
       - ./data:/app/data:z
