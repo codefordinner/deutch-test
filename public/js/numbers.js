@@ -45,7 +45,6 @@
     var boxes = document.querySelectorAll(".num-range-cb:checked");
     var ranges = [];
     boxes.forEach(function (b) { ranges.push(b.value); });
-    if (ranges.length === 0) ranges = ["0-12"];
     return ranges;
   }
 
@@ -57,31 +56,7 @@
     return dirs;
   }
 
-  function randomNumberFromRanges(ranges) {
-    var pick = ranges[Math.floor(Math.random() * ranges.length)];
-    var bounds = pick.split("-").map(Number);
-    var min = bounds[0], max = bounds[1];
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  function pickNumber(ranges, lastNumber) {
-    // total distinct numbers available across selected ranges
-    var totalCount = 0;
-    ranges.forEach(function (r) {
-      var b = r.split("-").map(Number);
-      totalCount += (b[1] - b[0] + 1);
-    });
-    if (totalCount <= 1) return randomNumberFromRanges(ranges);
-    var candidate;
-    do {
-      candidate = randomNumberFromRanges(ranges);
-    } while (candidate === lastNumber);
-    return candidate;
-  }
-
-  // Полный список чисел в выбранных диапазонах — нужен только для "умного
-  // подбора" (чтобы честно взвесить каждое число через общий
-  // QuizEngine.weightedPick, как это уже делают слова).
+  // Полный список чисел в выбранных диапазонах
   function numbersInRanges(ranges) {
     var nums = [];
     ranges.forEach(function (r) {
@@ -91,17 +66,23 @@
     return nums;
   }
 
+  function pickNumber(ranges, lastNumber) {
+    var pool = numbersInRanges(ranges);
+    if (pool.length === 0) return null;
+    if (pool.length === 1) return pool[0];
+    var filtered = pool.filter(function (n) { return n !== lastNumber; });
+    var candidates = filtered.length > 0 ? filtered : pool;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
   function numId(n) {
     return String(n);
   }
 
-  // "Умный подбор": числа, в которых чаще ошибались, выпадают заметно чаще,
-  // но остальные тоже продолжают встречаться, а суммарная вероятность
-  // "слабых" чисел ограничена (см. MAX_EXTRA_RATIO в quiz-engine.js) — без
-  // полного перебора диапазона и без риска, что одно число будет выпадать
-  // почти всегда.
+  // "Умный подбор": взвешенный выбор через QuizEngine
   function pickNumberSmart(ranges, weights, lastNumber) {
     var pool = numbersInRanges(ranges);
+    if (pool.length === 0) return null;
     var excludeId = lastNumber != null ? numId(lastNumber) : null;
     return QuizEngine.weightedPick(pool, numId, weights, excludeId);
   }
@@ -122,6 +103,72 @@
     }
   }
 
+  var RANGES_KEY = "german-trainer-num-ranges";
+  var DIRS_KEY = "german-trainer-num-dirs";
+
+  function saveRanges() {
+    try {
+      localStorage.setItem(RANGES_KEY, JSON.stringify(getRanges()));
+    } catch (e) {}
+  }
+
+  function loadRanges() {
+    try {
+      var raw = localStorage.getItem(RANGES_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (Array.isArray(saved)) {
+        document.querySelectorAll(".num-range-cb").forEach(function (cb) {
+          cb.checked = saved.indexOf(cb.value) !== -1;
+        });
+      }
+    } catch (e) {}
+  }
+
+  function saveDirs() {
+    try {
+      localStorage.setItem(DIRS_KEY, JSON.stringify(getDirs()));
+    } catch (e) {}
+  }
+
+  function loadDirs() {
+    try {
+      var raw = localStorage.getItem(DIRS_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (Array.isArray(saved)) {
+        document.querySelectorAll(".num-dir-cb").forEach(function (cb) {
+          cb.checked = saved.indexOf(cb.value) !== -1;
+        });
+      }
+    } catch (e) {}
+  }
+
+  function setQuizEnabled(enabled) {
+    var area = document.querySelector("#panel-numbers .quiz");
+    if (area) {
+      area.style.opacity = enabled ? "1" : "0.4";
+      area.style.pointerEvents = enabled ? "auto" : "none";
+    }
+  }
+
+  function onSettingsChanged() {
+    saveRanges();
+    saveDirs();
+    var ranges = getRanges();
+    if (ranges.length === 0) {
+      setQuizEnabled(false);
+      document.getElementById("num-question").textContent = "—";
+      document.getElementById("num-qmode").textContent = "Выбери хотя бы один диапазон чисел";
+      return;
+    }
+    setQuizEnabled(true);
+    quiz.newQuestion(true);
+  }
+
+  loadRanges();
+  loadDirs();
+
   var smartCb = document.getElementById("num-smart-cb");
   if (smartCb) smartCb.checked = loadSmartEnabled();
 
@@ -130,11 +177,13 @@
 
     pickNext: function (state) {
       var ranges = getRanges();
+      if (ranges.length === 0) return null;
       var dirs = getDirs();
       var lastNumber = state.current ? state.current.number : null;
       var number = (smartCb && smartCb.checked)
         ? pickNumberSmart(ranges, QuizEngine.getWeights("num"), lastNumber)
         : pickNumber(ranges, lastNumber);
+      if (number == null) return null;
       var dir = dirs[Math.floor(Math.random() * dirs.length)];
       return { number: number, dir: dir };
     },
@@ -168,9 +217,17 @@
     }
   });
 
+  document.querySelectorAll(".num-range-cb").forEach(function (cb) {
+    cb.addEventListener("change", onSettingsChanged);
+  });
+  document.querySelectorAll(".num-dir-cb").forEach(function (cb) {
+    cb.addEventListener("change", onSettingsChanged);
+  });
+
   if (smartCb) {
     smartCb.addEventListener("change", function () {
       saveSmartEnabled(smartCb.checked);
+      onSettingsChanged();
     });
   }
 
@@ -179,6 +236,7 @@
     numWeightsResetBtn.addEventListener("click", function () {
       if (!confirm("Сбросить статистику ошибок для чисел? Умный подбор начнёт заново.")) return;
       QuizEngine.resetWeights("num");
+      onSettingsChanged();
     });
   }
 

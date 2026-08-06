@@ -30,7 +30,7 @@
         <p class="prev-result" id="num-prev-result" aria-live="polite"></p>
         <p class="qmode" id="num-qmode">Число → слово</p>
         <p class="question" id="num-question">7</p>
-        <input class="answer-input" id="num-answer" type="text" placeholder="Введите ответ" autocomplete="off" aria-label="Ваш ответ">
+        <input class="answer-input" id="num-answer" type="text" placeholder="Введите ответ" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Ваш ответ">
         <div class="umlauts">
           <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ä" aria-label="Вставить ä">ä</button>
           <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ö" aria-label="Вставить ö">ö</button>
@@ -66,7 +66,7 @@
         <p class="prev-result" id="word-prev-result" aria-live="polite"></p>
         <p class="qmode" id="word-qmode">Немецкий → русский</p>
         <p class="question" id="word-question">—</p>
-        <input class="answer-input" id="word-answer" type="text" placeholder="Введите ответ" autocomplete="off" aria-label="Ваш ответ">
+        <input class="answer-input" id="word-answer" type="text" placeholder="Введите ответ" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Ваш ответ">
         <div class="umlauts">
           <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ä" aria-label="Вставить ä">ä</button>
           <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ö" aria-label="Вставить ö">ö</button>
@@ -75,6 +75,7 @@
         </div>
         <div class="buttons">
           <button id="word-check-btn">Проверить</button>
+          <button type="button" id="word-hint-btn" class="ghost-btn" style="padding: 9px 14px;">💡 Подсказка</button>
           <button id="word-next-btn">Дальше ↦</button>
         </div>
         <p class="feedback" id="word-feedback" aria-live="polite" role="status"></p>
@@ -150,6 +151,14 @@
         <div class="row">
           <label><input type="checkbox" class="word-dir-cb" value="de2ru" checked>Немецкий → русский</label>
           <label><input type="checkbox" class="word-dir-cb" value="ru2de" checked>Русский → немецкий</label>
+        </div>
+      </div>
+      <div>
+        <p class="label">Подсветка родов</p>
+        <div class="gender-legend">
+          <span class="gender-tag gender-der">der (мужской)</span>
+          <span class="gender-tag gender-die">die (женский)</span>
+          <span class="gender-tag gender-das">das (средний)</span>
         </div>
       </div>
       <div>

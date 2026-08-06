@@ -4,9 +4,39 @@ const express = require("express");
 const session = require("express-session");
 const path = require("path");
 const crypto = require("crypto");
+const fs = require("fs");
+const { execSync } = require("child_process");
 const { PrismaClient } = require("@prisma/client");
 
-const prisma = new PrismaClient();
+// Ensure data directory exists
+const dataDir = path.join(__dirname, "data");
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Ensure DATABASE_URL is set for SQLite
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = `file:${path.join(dataDir, "dev.db")}`;
+}
+
+// Prepare Prisma SQLite database schema and seed json data if possible
+try {
+  execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
+  const migrateScript = path.join(__dirname, "migrate-json.js");
+  if (fs.existsSync(migrateScript)) {
+    execSync(`node "${migrateScript}"`, { stdio: "inherit" });
+  }
+} catch (err) {
+  console.warn("[AI Studio] Database auto-setup warning:", err.message);
+}
+
+let prisma;
+try {
+  prisma = new PrismaClient();
+} catch (err) {
+  console.warn("[AI Studio] PrismaClient init error:", err.message);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -62,6 +92,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/categories", async (req, res) => {
   try {
+    if (!prisma) throw new Error("Prisma client not initialized");
     const categories = await prisma.category.findMany({
       include: {
         words: true
@@ -73,6 +104,16 @@ app.get("/api/categories", async (req, res) => {
     res.json(categories);
   } catch (error) {
     console.error("GET /api/categories error:", error);
+    try {
+      const dbJsonPath = path.join(__dirname, "data", "db.json");
+      if (fs.existsSync(dbJsonPath)) {
+        const raw = fs.readFileSync(dbJsonPath, "utf-8");
+        const parsed = JSON.parse(raw);
+        return res.json(parsed.categories || []);
+      }
+    } catch (e) {
+      console.error("Fallback json read error:", e);
+    }
     res.status(500).json({ error: "Ошибка сервера при получении категорий" });
   }
 });

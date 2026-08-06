@@ -6,8 +6,11 @@ services:
     container_name: web_trainer_app
     restart: always
     network_mode: host
+    command: npm run dev
     environment:
       - DATABASE_URL=file:/app/data/dev.db
       - PORT=3000
     volumes:
+      - .:/app:z
+      - /app/node_modules
       - ./data:/app/data:z

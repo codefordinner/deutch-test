@@ -448,6 +448,43 @@ th { color: var(--text-secondary); font-weight: 500; font-size: 12px; }
   border-radius: 6px;
 }
 
+/* ---- Gender highlighting (der / die / das) ---- */
+.gender-der {
+  color: #2563eb;
+  font-weight: 600;
+}
+.gender-die {
+  color: #dc2626;
+  font-weight: 600;
+}
+.gender-das {
+  color: #16a34a;
+  font-weight: 600;
+}
+:root[data-theme="dark"] .gender-der {
+  color: #60a5fa;
+}
+:root[data-theme="dark"] .gender-die {
+  color: #f87171;
+}
+:root[data-theme="dark"] .gender-das {
+  color: #4ade80;
+}
+
+.gender-legend {
+  display: inline-flex;
+  gap: 6px;
+  font-size: 13px;
+  align-items: center;
+}
+.gender-tag {
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: var(--settings-bg);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
 .danger-btn { background: var(--danger); }
 .danger-btn:hover { background: #a5291b; }
 

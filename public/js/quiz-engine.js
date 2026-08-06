@@ -110,6 +110,15 @@
     return weighted[weighted.length - 1].item;
   }
 
+  function formatGermanGender(text) {
+    if (!text || typeof text !== "string") return text || "";
+    var safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return safe.replace(/\b(der|die|das)\b/gi, function (match) {
+      var lower = match.toLowerCase();
+      return '<span class="gender-' + lower + '">' + match + '</span>';
+    });
+  }
+
   function createQuiz(options) {
     var prefix = options.prefix;
     var storageKey = STORAGE_PREFIX + prefix;
@@ -136,14 +145,12 @@
       bestStreak: 0,
       answered: false,
       lastResult: null,
-      current: null // текущий вопрос, формат задаёт сам режим (числа/слова)
+      current: null
     };
 
     function el(id) {
       return document.getElementById(id);
     }
-
-    // ---- сохранение счёта/серии между перезагрузками страницы ----
 
     function loadSavedStats() {
       try {
@@ -155,7 +162,7 @@
         if (typeof saved.streak === "number") state.streak = saved.streak;
         if (typeof saved.bestStreak === "number") state.bestStreak = saved.bestStreak;
       } catch (e) {
-        // localStorage недоступен (приватный режим и т.п.) или данные повреждены — просто игнорируем
+        // localStorage недоступен
       }
     }
 
@@ -168,7 +175,7 @@
           bestStreak: state.bestStreak
         }));
       } catch (e) {
-        // недоступно — не критично, просто не переживёт перезагрузку
+        // недоступно
       }
     }
 
@@ -207,12 +214,13 @@
       var fbEl = el(ids.feedback);
       var ansEl = el(ids.answer);
       if (!state.lastResult) return;
+      var formatted = formatGermanGender(state.lastResult.answerText);
       if (state.lastResult.correct) {
-        fbEl.textContent = "Верно: " + state.lastResult.answerText;
+        fbEl.innerHTML = "Верно: " + formatted;
         fbEl.style.color = "var(--success)";
         ansEl.style.borderColor = "var(--success-border)";
       } else {
-        fbEl.textContent = "Неверно. Правильно: " + state.lastResult.answerText;
+        fbEl.innerHTML = "Неверно. Правильно: " + formatted;
         fbEl.style.color = "var(--danger)";
         ansEl.style.borderColor = "var(--danger-border)";
       }
@@ -221,20 +229,19 @@
     function renderPrevResult() {
       var prevEl = el(ids.prevResult);
       if (!state.lastResult) {
-        prevEl.textContent = "";
+        prevEl.innerHTML = "";
         return;
       }
+      var formatted = formatGermanGender(state.lastResult.answerText);
       if (state.lastResult.correct) {
-        prevEl.textContent = "Прошлый ответ верный: " + state.lastResult.answerText;
+        prevEl.innerHTML = "Прошлый ответ верный: " + formatted;
         prevEl.style.color = "var(--success)";
       } else {
-        prevEl.textContent = "Прошлый ответ неверный. Было: " + state.lastResult.answerText;
+        prevEl.innerHTML = "Прошлый ответ неверный. Было: " + formatted;
         prevEl.style.color = "var(--danger)";
       }
     }
 
-    // skipEvaluation=true используется при самом первом вопросе и при смене
-    // настроек (категории/диапазоны) — чтобы не засчитывать "неответ" как ошибку.
     function newQuestion(skipEvaluation) {
       if (!skipEvaluation && !state.answered && state.current) evaluateCurrent();
       if (!skipEvaluation) renderPrevResult();
@@ -251,7 +258,7 @@
       var ansEl = el(ids.answer);
       var fbEl = el(ids.feedback);
       ansEl.value = "";
-      fbEl.textContent = "";
+      fbEl.innerHTML = "";
       ansEl.style.borderColor = "";
 
       options.render(next, {
@@ -278,9 +285,6 @@
       evaluateCurrent();
       showFeedbackForCurrent();
     });
-    // Обязательно оборачиваем в function(){}: если передать newQuestion
-    // напрямую в addEventListener, браузер подставит объект события первым
-    // аргументом, и он будет воспринят как skipEvaluation === true.
     el(ids.nextBtn).addEventListener("click", function () { newQuestion(); });
     el(ids.resetBtn).addEventListener("click", resetScore);
     el(ids.answer).addEventListener("keydown", function (e) {
@@ -305,6 +309,7 @@
     create: createQuiz,
     getWeights: getWeights,
     weightedPick: weightedPick,
-    resetWeights: resetWeights
+    resetWeights: resetWeights,
+    formatGermanGender: formatGermanGender
   };
 })(window);

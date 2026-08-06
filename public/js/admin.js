@@ -108,6 +108,15 @@
     });
   }
 
+  function formatGermanGender(text) {
+    if (!text || typeof text !== "string") return text || "";
+    var safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return safe.replace(/\b(der|die|das)\b/gi, function (match) {
+      var lower = match.toLowerCase();
+      return '<span class="gender-' + lower + '">' + match + '</span>';
+    });
+  }
+
   function buildWordRow(word) {
     var tr = document.createElement("tr");
 
@@ -115,7 +124,7 @@
     var ruTd = document.createElement("td");
     var actionsTd = document.createElement("td");
 
-    deTd.textContent = word.de;
+    deTd.innerHTML = formatGermanGender(word.de);
     ruTd.textContent = word.ru;
 
     var editBtn = document.createElement("button");
