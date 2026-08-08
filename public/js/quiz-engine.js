@@ -201,7 +201,11 @@
       } else {
         state.streak = 0;
       }
-      state.lastResult = { correct: result.isCorrect, answerText: result.correctText };
+      state.lastResult = {
+        correct: result.isCorrect,
+        answerText: result.correctText,
+        srsInfo: result.srsInfo
+      };
       renderScoreUI();
       saveStats();
       if (options.weightId) {
@@ -215,12 +219,27 @@
       var ansEl = el(ids.answer);
       if (!state.lastResult) return;
       var formatted = formatGermanGender(state.lastResult.answerText);
+      var srsNote = "";
+      if (state.lastResult.srsInfo) {
+        var srs = state.lastResult.srsInfo;
+        var dirLabel = state.current && state.current.dir === "de2ru" ? "🇩🇪→🇷🇺" : "🇷🇺→🇩🇪";
+        if (state.lastResult.correct) {
+          if (srs.newBox === 5) {
+            srsNote = '<br><small style="color: #099268; font-weight: 600;">🏆 ' + dirLabel + ' Выучено! (' + srs.levelName + ' — повтор через ' + srs.intervalDays + ' дн.)</small>';
+          } else {
+            srsNote = '<br><small style="color: var(--primary);">' + dirLabel + ' Перемещено на Уровень ' + srs.newBox + ' (' + srs.levelName + ' — повтор через ' + srs.intervalDays + ' дн.)</small>';
+          }
+        } else {
+          srsNote = '<br><small style="color: #d9480f;">🌱 ' + dirLabel + ' Вернулось на Уровень 1 (Новое — повтор сегодня)</small>';
+        }
+      }
+
       if (state.lastResult.correct) {
-        fbEl.innerHTML = "Верно: " + formatted;
+        fbEl.innerHTML = "Верно: " + formatted + srsNote;
         fbEl.style.color = "var(--success)";
         ansEl.style.borderColor = "var(--success-border)";
       } else {
-        fbEl.innerHTML = "Неверно. Правильно: " + formatted;
+        fbEl.innerHTML = "Неверно. Правильно: " + formatted + srsNote;
         fbEl.style.color = "var(--danger)";
         ansEl.style.borderColor = "var(--danger-border)";
       }

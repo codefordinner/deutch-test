@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Админ-панель — Тренажёр немецкого</title>
 <link rel="stylesheet" href="/css/style.css">
 <script src="/js/theme.js"></script>
@@ -12,9 +12,13 @@
 <button class="theme-toggle" id="theme-toggle" aria-label="Сменить тему">🌙</button>
 
 <div class="wrap" style="max-width:640px;">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; flex-wrap:wrap; gap:8px;">
     <a class="back-link" href="/index.html" style="margin-bottom:0;">← Назад к тренажёру</a>
-    <button class="small-btn ghost-btn" id="logout-btn">Выйти</button>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button type="button" class="small-btn ghost-btn" id="open-export-btn">📤 Экспорт (CSV / JSON / Anki)</button>
+      <button type="button" class="small-btn ghost-btn" id="open-import-btn">📥 Импорт слов</button>
+      <button class="small-btn ghost-btn" id="logout-btn">Выйти</button>
+    </div>
   </div>
   <h1>Админ-панель: слова</h1>
 
@@ -38,17 +42,46 @@
   <p class="empty-note" id="no-categories-note" style="display:none;">Категорий пока нет. Добавь первую выше.</p>
 
   <div class="admin-section" id="category-detail-section" style="display:none;">
-    <div class="inline-form">
+    <div class="inline-form" id="add-word-form">
       <input type="text" id="new-word-de" placeholder="по-немецки">
       <input type="text" id="new-word-ru" placeholder="перевод">
       <button id="add-word-btn">Добавить слово</button>
     </div>
+    <div id="duplicate-warning-banner" style="display:none; margin: -6px 0 12px; padding: 8px 12px; background: rgba(220, 53, 69, 0.1); border: 1px solid var(--danger); border-radius: 6px; font-size: 13px; color: var(--danger);"></div>
+    <p class="empty-note" id="global-mode-note" style="display:none; padding: 4px 0 12px; margin: 0; text-align: left;">
+      <i>Для добавления нового слова выберите конкретную категорию выше.</i>
+    </p>
 
-    <input type="text" id="word-filter-input" class="filter-input" placeholder="Поиск по словам в этой категории…">
+    <div class="search-row" style="display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+      <input type="text" id="word-filter-input" class="filter-input" style="flex:1; margin-bottom:0;" placeholder="Поиск по всем словарям и категориям…">
+      <label class="global-search-label" style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; white-space:nowrap; user-select:none;">
+        <input type="checkbox" id="global-search-cb"> Искать по всем словарям
+      </label>
+    </div>
+
+    <!-- Batch actions panel -->
+    <div class="batch-actions-bar" id="batch-actions-bar" style="display:none; margin-bottom: 12px; padding: 10px 14px; background: var(--settings-bg); border: 1px solid var(--border); border-radius: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+      <div style="font-size: 13px; font-weight: 500;">
+        Выбрано слов: <b id="selected-count">0</b>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button type="button" class="small-btn" id="batch-open-move-btn">Перенести в другой раздел</button>
+        <button type="button" class="small-btn danger-btn" id="batch-delete-btn">Удалить выбранные</button>
+        <button type="button" class="small-btn ghost-btn" id="batch-cancel-btn">Снять выделение</button>
+      </div>
+    </div>
 
     <div class="word-table-wrap">
       <table id="words-table">
-        <thead><tr><th>Немецкий</th><th>Перевод</th><th></th></tr></thead>
+        <thead>
+          <tr>
+            <th style="width:36px; text-align:center;"><input type="checkbox" id="select-all-words" title="Выбрать все"></th>
+            <th>Немецкий</th>
+            <th>Перевод</th>
+            <th id="th-category" style="display:none;">Раздел</th>
+            <th style="text-align:right;">Действия</th>
+          </tr>
+        </thead>
         <tbody id="words-tbody"></tbody>
       </table>
     </div>
@@ -56,6 +89,131 @@
   </div>
 </div>
 
+<!-- Modal for moving words -->
+<div class="modal-overlay hidden" id="move-modal">
+  <div class="modal-box">
+    <h2>Перенос слов в другую категорию</h2>
+    <p id="move-modal-text" style="font-size: 14px; color: var(--text-secondary); margin-bottom: 14px;"></p>
+
+    <div style="margin-bottom: 18px;">
+      <label for="move-target-category" style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Выберите целевую категорию:</label>
+      <select id="move-target-category" style="width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 14px;"></select>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button type="button" class="ghost-btn" id="cancel-move-btn">Отмена</button>
+      <button type="button" id="confirm-move-btn">Перенести</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for exporting words -->
+<div class="modal-overlay hidden" id="export-modal">
+  <div class="modal-box" style="max-width: 520px;">
+    <h2>📤 Экспорт словаря</h2>
+    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+      Выберите формат для скачивания словаря:
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;">
+      <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 14px; cursor: pointer;">
+        <input type="radio" name="export-format" value="csv" checked style="margin-top: 3px;">
+        <div>
+          <b>CSV формат (Excel / Таблицы)</b>
+          <div style="font-size: 12px; color: var(--text-secondary);">Колонки: Немецкий;Перевод;Категория</div>
+        </div>
+      </label>
+
+      <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 14px; cursor: pointer;">
+        <input type="radio" name="export-format" value="json" style="margin-top: 3px;">
+        <div>
+          <b>JSON формат (Резервная копия)</b>
+          <div style="font-size: 12px; color: var(--text-secondary);">Полные данные в формате JSON для восстановления или бэкапа</div>
+        </div>
+      </label>
+
+      <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 14px; cursor: pointer;">
+        <input type="radio" name="export-format" value="anki" style="margin-top: 3px;">
+        <div>
+          <b>Anki Deck (Flashcards TSV)</b>
+          <div style="font-size: 12px; color: var(--text-secondary);">Готовый файл с разделителем Tab для прямого импорта в Anki</div>
+        </div>
+      </label>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Область экспорта:</label>
+      <select id="export-scope-select" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 14px;"></select>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button type="button" class="ghost-btn" id="cancel-export-btn">Отмена</button>
+      <button type="button" id="confirm-export-btn">Скачать файл</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for importing words -->
+<div class="modal-overlay hidden" id="import-modal">
+  <div class="modal-box" style="max-width: 600px;">
+    <h2>📥 Импорт слов (CSV / JSON / Anki)</h2>
+    
+    <div style="margin-bottom: 14px;">
+      <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Выберите файл или вставьте текст ниже:</label>
+      <input type="file" id="import-file-input" accept=".json,.csv,.txt,.tsv" style="width: 100%; font-size: 13px;">
+    </div>
+
+    <div style="margin-bottom: 14px;">
+      <textarea id="import-text-input" rows="5" placeholder="Вставьте текст или Anki карточки здесь (например:
+der Hund;собака;Животные
+die Katze;кошка;Животные
+или формат Anki через табуляцию / запятую)" style="width: 100%; padding: 10px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-primary); font-family: monospace; resize: vertical;"></textarea>
+    </div>
+
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+      <div style="flex: 1; min-width: 200px;">
+        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Категория назначения:</label>
+        <select id="import-target-cat" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: 13px;"></select>
+      </div>
+
+      <div style="display: flex; align-items: flex-end;">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding-bottom: 8px;">
+          <input type="checkbox" id="import-skip-dup-cb" checked>
+          Пропускать дубликаты
+        </label>
+      </div>
+    </div>
+
+    <div id="import-preview-box" style="display: none; margin-bottom: 16px; padding: 12px; background: var(--settings-bg); border: 1px solid var(--border); border-radius: 8px;">
+      <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; justify-content: space-between;">
+        <span>Предпросмотр данных:</span>
+        <span id="import-preview-count" style="color: var(--primary);">0 слов</span>
+      </div>
+      <div style="max-height: 160px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--surface);">
+        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border); background: var(--bg); text-align: left;">
+              <th style="padding: 6px 8px;">Немецкий</th>
+              <th style="padding: 6px 8px;">Перевод</th>
+              <th style="padding: 6px 8px;">Категория</th>
+            </tr>
+          </thead>
+          <tbody id="import-preview-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <button type="button" class="small-btn ghost-btn" id="parse-import-btn">🔍 Анализ / Предпросмотр</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="ghost-btn" id="cancel-import-btn">Отмена</button>
+        <button type="button" id="confirm-import-btn" disabled>Импортировать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
 <script src="/js/admin.js"></script>
 </body>
 </html>

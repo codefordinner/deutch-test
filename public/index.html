@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Тренажёр немецкого</title>
 <link rel="stylesheet" href="/css/style.css">
 <script src="/js/theme.js"></script>
@@ -58,7 +58,9 @@
   <!-- ===== WORDS PANEL ===== -->
   <div class="panel" id="panel-words">
     <div class="card">
-      <div class="quiz-toolbar">
+      <div class="quiz-toolbar" style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+        <button type="button" class="settings-trigger" data-modal="dictionary-modal">📖 Словарь</button>
+        <button type="button" class="settings-trigger" data-modal="srs-progress-modal">📊 Прогресс</button>
         <button type="button" class="settings-trigger" data-modal="word-settings-modal">⚙ Параметры</button>
       </div>
 
@@ -93,6 +95,63 @@
   </div>
 
   <a class="admin-link" href="/admin.html">Админ-панель: добавить свои слова →</a>
+</div>
+
+<!-- ===== PROGRESS DASHBOARD MODAL ===== -->
+<div class="modal-overlay hidden" id="srs-progress-modal">
+  <div class="modal-box" style="max-width: 580px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+      <h2 style="margin: 0; font-size: 17px;">📊 Прогресс запоминания слов</h2>
+      <button type="button" class="small-btn ghost-btn" id="srs-info-btn" style="padding: 3px 10px; font-size: 12px;">ℹ️ Как это работает?</button>
+    </div>
+
+    <div style="margin-bottom: 14px;">
+      <div id="srs-status-badge" class="category-tag" style="padding: 8px 12px; font-size: 13px; width: 100%; text-align: center; border-radius: 8px; font-weight: 500;">Загрузка…</div>
+    </div>
+
+    <div id="category-progress-container" style="display: flex; flex-direction: column; gap: 12px; max-height: 58vh; overflow-y: auto; padding-right: 2px;">
+      <p class="empty-note" style="padding: 0;">загрузка статистики…</p>
+    </div>
+
+    <div class="modal-close-row" style="margin-top: 18px;">
+      <button type="button" class="js-modal-close ghost-btn">Готово</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SRS ALGORITHM EXPLANATION MODAL ===== -->
+<div class="modal-overlay hidden" id="srs-info-modal">
+  <div class="modal-box" style="max-width: 540px;">
+    <h2>🧠 Как работает интервальное повторение?</h2>
+    
+    <div style="font-size: 14px; color: var(--text-primary); line-height: 1.5; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+      <p style="margin: 0;">
+        Приложение использует <b>Систему Лейтнера (Spaced Repetition)</b>. Каждое правильное отвеченное слово поднимается на следующий уровень, а интервал до следующего повторения увеличивается.
+      </p>
+
+      <div style="background: var(--settings-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+        <b style="color: var(--primary); display: block; margin-bottom: 6px;">💡 Раздельные карточки для разных направлений:</b>
+        Перевод <b>Немецкий → Русский</b> и <b>Русский → Немецкий</b> отслеживаются <b>отдельно</b>! Вспомнить немецкое слово и правильно написать его с артиклем значительно сложнее, поэтому обратный перевод требует отдельного закрепления.
+      </div>
+
+      <b style="margin-top: 4px;">Этапы запоминания:</b>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+        <div style="display: flex; gap: 8px; align-items: center;"><span style="background: rgba(224, 49, 49, 0.15); color: #e03131; padding: 2px 8px; border-radius: 4px; font-weight: 600; min-width: 85px;">🌱 Уровень 1</span> <span><b>Новое / Повторить сегодня</b> (показывается сразу)</span></div>
+        <div style="display: flex; gap: 8px; align-items: center;"><span style="background: rgba(255, 146, 43, 0.15); color: #d9480f; padding: 2px 8px; border-radius: 4px; font-weight: 600; min-width: 85px;">🌿 Уровень 2</span> <span><b>Знакомое</b> (повтор через 1 день)</span></div>
+        <div style="display: flex; gap: 8px; align-items: center;"><span style="background: rgba(252, 196, 25, 0.15); color: #f59f00; padding: 2px 8px; border-radius: 4px; font-weight: 600; min-width: 85px;">🌳 Уровень 3</span> <span><b>Закреплено</b> (повтор через 3 дня)</span></div>
+        <div style="display: flex; gap: 8px; align-items: center;"><span style="background: rgba(81, 207, 102, 0.15); color: #2b8a3e; padding: 2px 8px; border-radius: 4px; font-weight: 600; min-width: 85px;">🌲 Уровень 4</span> <span><b>Уверенно</b> (повтор через 7 дней)</span></div>
+        <div style="display: flex; gap: 8px; align-items: center;"><span style="background: rgba(32, 201, 151, 0.15); color: #099268; padding: 2px 8px; border-radius: 4px; font-weight: 600; min-width: 85px;">🏆 Уровень 5</span> <span><b>Выучено!</b> (повтор через 14 дней)</span></div>
+      </div>
+
+      <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-secondary);">
+        <b>При ошибке:</b> Карточка возвращается на 🌱 Уровень 1 для повторного изучения.
+      </p>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end;">
+      <button type="button" id="close-srs-info-btn">Понятно</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===== SETTINGS MODAL — NUMBERS ===== -->
@@ -165,8 +224,12 @@
         <p class="label">Дополнительно</p>
         <div class="row" style="flex-direction:column; align-items:flex-start; gap:10px;">
           <label><input type="checkbox" class="umlaut-toggle-cb" checked>Показывать кнопки умляутов (ä ö ü ß)</label>
+          <label><input type="checkbox" id="word-srs-cb" checked>Интервальное повторение (SRS / Система Лейтнера)</label>
           <label><input type="checkbox" id="word-smart-cb">Умный подбор — чаще спрашивать то, где ошибаюсь</label>
-          <button type="button" class="small-btn ghost-btn" id="word-weights-reset-btn">Сбросить статистику ошибок</button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+            <button type="button" class="small-btn ghost-btn" id="word-srs-reset-btn">Сбросить Лейтнер-прогресс</button>
+            <button type="button" class="small-btn ghost-btn" id="word-weights-reset-btn">Сбросить статистику ошибок</button>
+          </div>
         </div>
       </div>
     </div>
@@ -177,6 +240,52 @@
   </div>
 </div>
 
+<!-- ===== DICTIONARY BROWSER & FILTER MODAL ===== -->
+<div class="modal-overlay hidden" id="dictionary-modal">
+  <div class="modal-box" style="max-width: 680px; width: 92%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+      <h2 style="margin: 0; font-size: 17px;">📖 Словарь и просмотр слов</h2>
+      <span id="dict-count-badge" class="category-tag" style="background: var(--surface); color: var(--primary); font-size: 12px; padding: 4px 10px;">0 слов</span>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+      <input type="text" id="dict-search-input" placeholder="Поиск по немецкому или русскому..." style="flex: 2; min-width: 180px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-primary); font-size: 14px;">
+      
+      <select id="dict-cat-select" style="flex: 1; min-width: 140px; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 13px;">
+        <option value="__ALL__">Все категории</option>
+      </select>
+
+      <select id="dict-level-select" style="flex: 1; min-width: 130px; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 13px;">
+        <option value="__ALL__">Все уровни</option>
+        <option value="1">🌱 Уровень 1 (Новое)</option>
+        <option value="2">🌿 Уровень 2 (Знакомое)</option>
+        <option value="3">🌳 Уровень 3 (Закреплено)</option>
+        <option value="4">🌲 Уровень 4 (Уверенно)</option>
+        <option value="5">🏆 Уровень 5 (Выучено)</option>
+      </select>
+    </div>
+
+    <div style="max-height: 52vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);">
+      <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border); background: var(--bg); text-align: left; sticky; top: 0; z-index: 2;">
+            <th style="padding: 10px 12px;">Немецкий</th>
+            <th style="padding: 10px 12px;">Перевод</th>
+            <th style="padding: 10px 12px;">Категория</th>
+            <th style="padding: 10px 12px; text-align: right;">Статус SRS</th>
+          </tr>
+        </thead>
+        <tbody id="dict-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="modal-close-row" style="margin-top: 16px;">
+      <button type="button" class="js-modal-close ghost-btn">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
 <script src="/js/umlauts.js"></script>
 <script src="/js/quiz-engine.js"></script>
 <script src="/js/numbers.js"></script>
