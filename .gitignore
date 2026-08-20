@@ -3,5 +3,5 @@
 *.pem
 *.key
 node_modules
-data/*.db
-data/*.db-journal
+prisma/prisma/*.db
+prisma/prisma/*.db-journal
