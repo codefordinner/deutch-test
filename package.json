@@ -17,7 +17,8 @@
   "scripts": {
     "dev": "node --watch server.js",
     "build": "npx prisma generate",
-    "start": "node server.js"
+    "start": "node server.js",
+    "lint": "node --check server.js src/app.js src/config/index.js src/routes/index.js src/db/prisma.js"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

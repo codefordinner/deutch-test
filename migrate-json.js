@@ -1,6 +1,11 @@
+require("dotenv").config();
 const { PrismaClient } = require("@prisma/client");
 const fs = require("fs");
 const path = require("path");
+
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = `file:${path.join(__dirname, "prisma", "dev.db")}`;
+}
 
 const prisma = new PrismaClient();
 const DB_JSON_PATH = path.join(__dirname, "data", "db.json");
@@ -84,10 +89,23 @@ async function main() {
               id: wordId,
               de: word.de,
               ru: word.ru,
+              plural: word.plural || null,
+              feminine: word.feminine || null,
               categoryId: dbCategory.id
             }
           });
           wordCount++;
+        } else {
+          // Keep existing or enrich with plural/feminine if provided
+          const updateData = {};
+          if (word.plural && !existingWord.plural) updateData.plural = word.plural;
+          if (word.feminine && !existingWord.feminine) updateData.feminine = word.feminine;
+          if (Object.keys(updateData).length > 0) {
+            await prisma.word.update({
+              where: { id: existingWord.id },
+              data: updateData
+            });
+          }
         }
       }
     }

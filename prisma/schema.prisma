@@ -18,6 +18,8 @@ model Word {
   id         String   @id @default(cuid())
   de         String
   ru         String
+  plural     String?
+  feminine   String?
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())

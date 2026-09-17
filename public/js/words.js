@@ -59,11 +59,18 @@
     } catch (e) {}
   }
 
-  // Retrieve SRS stats specifically for (wordId + direction)
-  function getWordSRS(wordId, dir) {
+  // Retrieve SRS stats specifically for (wordId + direction/subKey)
+  // Sub-keys: "de2ru", "ru2de_sg" (singular), "ru2de_pl" (plural), or legacy "ru2de"
+  function getWordSRS(wordId, keyOrDir) {
     var store = getSRSStore();
-    var srsKey = wordId + "_" + (dir || "de2ru");
-    var data = store[srsKey] || store[wordId];
+    var srsKey = keyOrDir && keyOrDir.indexOf(wordId) === 0 ? keyOrDir : (wordId + "_" + (keyOrDir || "de2ru"));
+    var data = store[srsKey];
+    if (!data && (keyOrDir === "ru2de_sg" || srsKey === wordId + "_ru2de_sg")) {
+      data = store[wordId + "_ru2de"];
+    }
+    if (!data) {
+      data = store[wordId];
+    }
     return data || {
       box: 1,
       nextReview: 0,
@@ -73,10 +80,17 @@
     };
   }
 
-  function updateWordSRS(wordId, dir, isCorrect) {
+  function updateWordSRS(wordId, keyOrDir, isCorrect) {
     var store = getSRSStore();
-    var srsKey = wordId + "_" + (dir || "de2ru");
-    var current = store[srsKey] || store[wordId] || {
+    var srsKey = keyOrDir && keyOrDir.indexOf(wordId) === 0 ? keyOrDir : (wordId + "_" + (keyOrDir || "de2ru"));
+    var current = store[srsKey];
+    if (!current && (keyOrDir === "ru2de_sg" || srsKey === wordId + "_ru2de_sg")) {
+      current = store[wordId + "_ru2de"];
+    }
+    if (!current) {
+      current = store[wordId];
+    }
+    current = current || {
       box: 1,
       nextReview: 0,
       lastReviewed: 0,
@@ -121,6 +135,8 @@
             delete store[w.id];
             delete store[w.id + "_de2ru"];
             delete store[w.id + "_ru2de"];
+            delete store[w.id + "_ru2de_sg"];
+            delete store[w.id + "_ru2de_pl"];
           });
         }
       });
@@ -263,57 +279,86 @@
     if (pool.length === 0 || dirs.length === 0) return null;
     var now = Date.now();
 
-    // Create list of all active (word, direction) cards
-    var pairs = [];
+    // Create list of all active Leitner flashcards (directional & form-specific)
+    var cards = [];
     pool.forEach(function (w) {
-      dirs.forEach(function (d) {
-        pairs.push({ word: w, dir: d, srs: getWordSRS(w.id, d) });
-      });
+      if (dirs.indexOf("de2ru") !== -1) {
+        cards.push({
+          word: w,
+          dir: "de2ru",
+          formTarget: "base",
+          srsSubKey: "de2ru",
+          srs: getWordSRS(w.id, "de2ru")
+        });
+      }
+      if (dirs.indexOf("ru2de") !== -1) {
+        // Singular card (одинина / единственное число)
+        cards.push({
+          word: w,
+          dir: "ru2de",
+          formTarget: "singular",
+          srsSubKey: "ru2de_sg",
+          srs: getWordSRS(w.id, "ru2de_sg")
+        });
+        // Plural card (множественное число, если оно есть)
+        if (w.plural && w.plural.trim()) {
+          cards.push({
+            word: w,
+            dir: "ru2de",
+            formTarget: "plural",
+            srsSubKey: "ru2de_pl",
+            srs: getWordSRS(w.id, "ru2de_pl")
+          });
+        }
+      }
     });
 
+    if (cards.length === 0) return null;
+
     // Find cards due for review today
-    var duePairs = pairs.filter(function (p) {
-      return p.srs.nextReview <= now;
+    var dueCards = cards.filter(function (c) {
+      return c.srs.nextReview <= now;
     });
 
     var mistakeWeights = isSmartEnabled ? QuizEngine.getWeights("word") : {};
 
-    function calculatePairWeight(p) {
-      var box = Math.min(5, Math.max(1, p.srs.box || 1));
+    function calculateCardWeight(c) {
+      var box = Math.min(5, Math.max(1, c.srs.box || 1));
       var srsWeight = getSRSBaseWeight(box);
-      var mistakes = mistakeWeights[p.word.id] || 0;
+      var wid = c.formTarget === "plural" ? c.word.id + "_pl" : c.word.id;
+      var mistakes = mistakeWeights[wid] || mistakeWeights[c.word.id] || 0;
       var mistakeMultiplier = 1 + (mistakes * 2);
       return srsWeight * mistakeMultiplier;
     }
 
-    if (duePairs.length > 0) {
-      var candidatesDue = duePairs;
-      if (lastWordId && duePairs.length > 1) {
-        var filteredDue = duePairs.filter(function (p) { return p.word.id !== lastWordId; });
+    if (dueCards.length > 0) {
+      var candidatesDue = dueCards;
+      if (lastWordId && dueCards.length > 1) {
+        var filteredDue = dueCards.filter(function (c) { return c.word.id !== lastWordId; });
         if (filteredDue.length > 0) candidatesDue = filteredDue;
       }
 
       var totalWDue = 0;
-      var weightedDue = candidatesDue.map(function (p) {
-        var w = calculatePairWeight(p);
+      var weightedDue = candidatesDue.map(function (c) {
+        var w = calculateCardWeight(c);
         totalWDue += w;
-        return { pair: p, w: w };
+        return { card: c, w: w };
       });
 
       var rDue = Math.random() * totalWDue;
       for (var i = 0; i < weightedDue.length; i++) {
         rDue -= weightedDue[i].w;
-        if (rDue <= 0) return weightedDue[i].pair;
+        if (rDue <= 0) return weightedDue[i].card;
       }
-      return weightedDue[weightedDue.length - 1].pair;
+      return weightedDue[weightedDue.length - 1].card;
     }
 
     // All scheduled reviews done for today!
     // 50% probability: Completely random uniform pick across all pool cards
     // 50% probability: Weighted pick by weakness (SRS level weight * mistake multiplier)
-    var candidatesPool = pairs;
-    if (lastWordId && pairs.length > 1) {
-      var filteredPool = pairs.filter(function (p) { return p.word.id !== lastWordId; });
+    var candidatesPool = cards;
+    if (lastWordId && cards.length > 1) {
+      var filteredPool = cards.filter(function (c) { return c.word.id !== lastWordId; });
       if (filteredPool.length > 0) candidatesPool = filteredPool;
     }
 
@@ -324,18 +369,18 @@
       return candidatesPool[randomIndex];
     } else {
       var totalWAll = 0;
-      var weightedAll = candidatesPool.map(function (p) {
-        var w = calculatePairWeight(p);
+      var weightedAll = candidatesPool.map(function (c) {
+        var w = calculateCardWeight(c);
         totalWAll += w;
-        return { pair: p, w: w };
+        return { card: c, w: w };
       });
 
       var rAll = Math.random() * totalWAll;
       for (var j = 0; j < weightedAll.length; j++) {
         rAll -= weightedAll[j].w;
-        if (rAll <= 0) return weightedAll[j].pair;
+        if (rAll <= 0) return weightedAll[j].card;
       }
-      return weightedAll[weightedAll.length - 1].pair;
+      return weightedAll[weightedAll.length - 1].card;
     }
   }
 
@@ -364,31 +409,45 @@
       if (pool.length === 0) return null;
       var dirs = getDirs();
       var lastWordId = state.current ? state.current.word.id : null;
-      var wordObj, dir;
+      var wordObj, dir, formTarget, srsSubKey;
 
       var isSRS = srsCb && srsCb.checked;
       var isSmart = smartCb && smartCb.checked;
 
       if (isSRS) {
-        var srsPair = pickWordSRS(pool, dirs, lastWordId, isSmart);
-        if (!srsPair) return null;
-        wordObj = srsPair.word;
-        dir = srsPair.dir;
+        var srsCard = pickWordSRS(pool, dirs, lastWordId, isSmart);
+        if (!srsCard) return null;
+        wordObj = srsCard.word;
+        dir = srsCard.dir;
+        formTarget = srsCard.formTarget;
+        srsSubKey = srsCard.srsSubKey;
       } else if (isSmart) {
         wordObj = QuizEngine.weightedPick(pool, wordId, QuizEngine.getWeights("word"), lastWordId);
         dir = dirs[Math.floor(Math.random() * dirs.length)];
+        if (dir === "ru2de") {
+          formTarget = (wordObj.plural && wordObj.plural.trim() && Math.random() < 0.5) ? "plural" : "singular";
+        } else {
+          formTarget = "base";
+        }
+        srsSubKey = dir === "ru2de" ? (formTarget === "plural" ? "ru2de_pl" : "ru2de_sg") : "de2ru";
       } else {
         wordObj = pickWordPlain(pool, lastWordId);
         dir = dirs[Math.floor(Math.random() * dirs.length)];
+        if (dir === "ru2de") {
+          formTarget = (wordObj.plural && wordObj.plural.trim() && Math.random() < 0.5) ? "plural" : "singular";
+        } else {
+          formTarget = "base";
+        }
+        srsSubKey = dir === "ru2de" ? (formTarget === "plural" ? "ru2de_pl" : "ru2de_sg") : "de2ru";
       }
 
-      return { word: wordObj, dir: dir, isSRS: isSRS };
+      return { word: wordObj, dir: dir, formTarget: formTarget, srsSubKey: srsSubKey, isSRS: isSRS };
     },
 
     render: function (current, elements) {
       var srsBadge = "";
       if (current.isSRS) {
-        var srs = getWordSRS(current.word.id, current.dir);
+        var srs = getWordSRS(current.word.id, current.srsSubKey || current.dir);
         var isDue = srs.nextReview <= Date.now();
         var lvlName = LEVEL_NAMES[srs.box || 1];
         srsBadge = ' <span style="font-size: 12px; font-weight: normal; opacity: 0.9;">' +
@@ -396,34 +455,101 @@
       }
 
       if (current.dir === "de2ru") {
-        elements.modeEl.innerHTML = "🇩🇪→🇷🇺 Немецкий → русский" + srsBadge;
-        elements.qEl.innerHTML = QuizEngine.formatGermanGender(current.word.de);
+        elements.modeEl.innerHTML = "Немецкий → русский" + srsBadge;
+        var qHtml = QuizEngine.formatGermanGender(current.word.de);
+        if (current.word.plural || current.word.feminine) {
+          qHtml += '<div class="question-forms">';
+          if (current.word.plural) {
+            qHtml += '<span class="form-badge plural-badge" title="Множественное число">мн. ч.: ' + QuizEngine.formatGermanGender(current.word.plural) + '</span>';
+          }
+          if (current.word.feminine) {
+            qHtml += '<span class="form-badge fem-badge" title="Женский род">ж. р.: ' + QuizEngine.formatGermanGender(current.word.feminine) + '</span>';
+          }
+          qHtml += '</div>';
+        }
+        elements.qEl.innerHTML = qHtml;
         elements.ansEl.placeholder = "Перевод на русский";
       } else {
-        elements.modeEl.innerHTML = "🇷🇺→🇩🇪 Русский → немецкий" + srsBadge;
-        elements.qEl.textContent = current.word.ru;
-        elements.ansEl.placeholder = "Слово по-немецки";
+        var instructionHtml = "";
+        var placeholder = "По-немецки";
+
+        if (current.formTarget === "plural") {
+          instructionHtml = '<div class="form-instruction plural-instruction">' +
+            '👉 Введите форму <b>множественного числа</b>' +
+            '</div>';
+          placeholder = "Множественное число";
+        } else if (current.word.plural && current.word.plural.trim()) {
+          instructionHtml = '<div class="form-instruction singular-instruction">' +
+            '👉 Введите форму <b>единственного числа</b>' +
+            '</div>';
+          placeholder = "Единственное число";
+        }
+
+        elements.modeEl.innerHTML = "Русский → немецкий" + srsBadge;
+        elements.qEl.innerHTML = '<div style="font-size: 26px; font-weight: 600;">' + current.word.ru + '</div>' + instructionHtml;
+        elements.ansEl.placeholder = placeholder;
       }
     },
 
     checkAnswer: function (userVal, current) {
-      var correctText = current.dir === "de2ru" ? current.word.ru : current.word.de;
-      var isCorrect = matchesAnyAlternative(userVal, correctText);
+      var isCorrect = false;
+      var correctText = "";
+      var extraFeedback = "";
+
+      if (current.dir === "de2ru") {
+        correctText = current.word.ru;
+        isCorrect = matchesAnyAlternative(userVal, correctText);
+      } else {
+        if (current.formTarget === "plural") {
+          correctText = current.word.plural;
+          isCorrect = matchesAnyAlternative(userVal, current.word.plural);
+          if (!isCorrect && matchesAnyAlternative(userVal, current.word.de)) {
+            extraFeedback = "💡 Вы ввели единственное число (<b>" + current.word.de + "</b>), а требовалось множественное: <b>" + current.word.plural + "</b>";
+          }
+        } else {
+          correctText = current.word.de;
+          isCorrect = matchesAnyAlternative(userVal, current.word.de);
+          if (!isCorrect && current.word.plural && matchesAnyAlternative(userVal, current.word.plural)) {
+            extraFeedback = "💡 Вы ввели множественное число (<b>" + current.word.plural + "</b>), а требовалось единственное: <b>" + current.word.de + "</b>";
+          }
+        }
+      }
+
+      var extraNote = "";
+      if (current.dir === "ru2de") {
+        if (current.formTarget === "plural") {
+          extraNote = " (ед. ч.: " + current.word.de + ")";
+        } else if (current.word.plural || current.word.feminine) {
+          var forms = [];
+          if (current.word.plural) forms.push("мн: " + current.word.plural);
+          if (current.word.feminine) forms.push("ж: " + current.word.feminine);
+          extraNote = " (" + forms.join(", ") + ")";
+        }
+      } else if (current.word.plural || current.word.feminine) {
+        var formsAll = [];
+        if (current.word.plural) formsAll.push("мн: " + current.word.plural);
+        if (current.word.feminine) formsAll.push("ж: " + current.word.feminine);
+        extraNote = " (" + formsAll.join(", ") + ")";
+      }
 
       var srsInfo = null;
       if (srsCb && srsCb.checked) {
-        srsInfo = updateWordSRS(current.word.id, current.dir, isCorrect);
+        srsInfo = updateWordSRS(current.word.id, current.srsSubKey || current.dir, isCorrect);
         renderCategoryProgress();
       }
 
       return {
         isCorrect: isCorrect,
-        correctText: correctText,
+        correctText: correctText + extraNote,
+        extraFeedback: extraFeedback,
         srsInfo: srsInfo
       };
     },
 
     weightId: function (current) {
+      if (current.dir === "ru2de" && current.formTarget === "plural") {
+        return current.word.id + "_pl";
+      }
       return current.word.id;
     },
 
@@ -470,15 +596,19 @@
 
     categories.forEach(function (cat) {
       var catWords = cat.words || [];
-      var totalCards = catWords.length * 2;
-      totalCardsAll += totalCards;
-
+      var totalCards = 0;
       var levels = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       var dueCount = 0;
 
       catWords.forEach(function (w) {
-        ["de2ru", "ru2de"].forEach(function (dir) {
-          var srs = getWordSRS(w.id, dir);
+        var subKeys = ["de2ru", "ru2de_sg"];
+        if (w.plural && w.plural.trim()) {
+          subKeys.push("ru2de_pl");
+        }
+        totalCards += subKeys.length;
+
+        subKeys.forEach(function (sub) {
+          var srs = getWordSRS(w.id, sub);
           var lvl = Math.min(5, Math.max(1, srs.box || 1));
           levels[lvl] = (levels[lvl] || 0) + 1;
 
@@ -488,6 +618,7 @@
         });
       });
 
+      totalCardsAll += totalCards;
       totalDueAll += dueCount;
       var mastered = levels[5];
       var percent = totalCards === 0 ? 0 : Math.round((mastered / totalCards) * 100);
@@ -607,28 +738,32 @@
         // Check search query match
         var deMatch = w.de.toLowerCase().indexOf(searchQuery) !== -1;
         var ruMatch = w.ru.toLowerCase().indexOf(searchQuery) !== -1;
-        if (searchQuery && !deMatch && !ruMatch) return;
+        var plMatch = w.plural && w.plural.toLowerCase().indexOf(searchQuery) !== -1;
+        var femMatch = w.feminine && w.feminine.toLowerCase().indexOf(searchQuery) !== -1;
+        if (searchQuery && !deMatch && !ruMatch && !plMatch && !femMatch) return;
 
-        // Get SRS levels for both directions
+        // Get SRS levels for all directions
         var srsDe2Ru = getWordSRS(w.id, "de2ru");
-        var srsRu2De = getWordSRS(w.id, "ru2de");
+        var srsRu2DeSg = getWordSRS(w.id, "ru2de_sg");
+        var srsRu2DePl = (w.plural && w.plural.trim()) ? getWordSRS(w.id, "ru2de_pl") : null;
 
         var lvlDe2Ru = Math.min(5, Math.max(1, srsDe2Ru.box || 1));
-        var lvlRu2De = Math.min(5, Math.max(1, srsRu2De.box || 1));
+        var lvlRu2DeSg = Math.min(5, Math.max(1, srsRu2DeSg.box || 1));
+        var lvlRu2DePl = srsRu2DePl ? Math.min(5, Math.max(1, srsRu2DePl.box || 1)) : null;
 
         // Filter by SRS level if selected
         if (selectedLevel !== "__ALL__") {
           var targetLvl = parseInt(selectedLevel, 10);
-          if (lvlDe2Ru !== targetLvl && lvlRu2De !== targetLvl) return;
+          var matchesLvl = (lvlDe2Ru === targetLvl || lvlRu2DeSg === targetLvl || (lvlRu2DePl !== null && lvlRu2DePl === targetLvl));
+          if (!matchesLvl) return;
         }
 
         filteredList.push({
           word: w,
           categoryName: cat.name,
-          srsDe2Ru: srsDe2Ru,
-          srsRu2De: srsRu2De,
           lvlDe2Ru: lvlDe2Ru,
-          lvlRu2De: lvlRu2De
+          lvlRu2DeSg: lvlRu2DeSg,
+          lvlRu2DePl: lvlRu2DePl
         });
       });
     });
@@ -652,15 +787,29 @@
 
     var html = "";
     filteredList.forEach(function (item) {
-      var formattedDe = QuizEngine.formatGermanGender(item.word.de);
+      var formattedDe = '<div style="font-weight: 500;">' + QuizEngine.formatGermanGender(item.word.de) + '</div>';
+      if (item.word.plural || item.word.feminine) {
+        formattedDe += '<div class="word-extra-forms">';
+        if (item.word.plural) {
+          formattedDe += '<span class="form-badge plural-badge" title="Множественное число">мн: ' + QuizEngine.formatGermanGender(item.word.plural) + '</span>';
+        }
+        if (item.word.feminine) {
+          formattedDe += '<span class="form-badge fem-badge" title="Женский род">ж: ' + QuizEngine.formatGermanGender(item.word.feminine) + '</span>';
+        }
+        formattedDe += '</div>';
+      }
+
+      var srsHtml = '<span title="Немецкий → Русский">' + levelBadges[item.lvlDe2Ru] + ' (DE)</span> / ' +
+                    '<span title="Русский → Немецкий (ед. ч.)">' + levelBadges[item.lvlRu2DeSg] + ' (RU ед.)</span>';
+      if (item.lvlRu2DePl !== null) {
+        srsHtml += ' / <span title="Русский → Немецкий (мн. ч.)">' + levelBadges[item.lvlRu2DePl] + ' (RU мн.)</span>';
+      }
+
       html += '<tr style="border-bottom: 1px solid var(--border);">';
-      html += '  <td style="padding: 10px 12px; font-weight: 500;">' + formattedDe + '</td>';
+      html += '  <td style="padding: 10px 12px;">' + formattedDe + '</td>';
       html += '  <td style="padding: 10px 12px; color: var(--text-primary);">' + item.word.ru + '</td>';
       html += '  <td style="padding: 10px 12px; font-size: 12px; color: var(--text-secondary);">' + item.categoryName + '</td>';
-      html += '  <td style="padding: 10px 12px; text-align: right; font-size: 12px; white-space: nowrap;">';
-      html += '    <span title="Немецкий → Русский">' + levelBadges[item.lvlDe2Ru] + ' (DE)</span> / ';
-      html += '    <span title="Русский → Немецкий">' + levelBadges[item.lvlRu2De] + ' (RU)</span>';
-      html += '  </td>';
+      html += '  <td style="padding: 10px 12px; text-align: right; font-size: 12px; white-space: nowrap;">' + srsHtml + '</td>';
       html += '</tr>';
     });
 
@@ -711,7 +860,14 @@
     wordHintBtn.addEventListener("click", function () {
       if (!quiz.state.current) return;
       var current = quiz.state.current;
-      var correctText = current.dir === "de2ru" ? current.word.ru : current.word.de;
+      var correctText = "";
+      if (current.dir === "de2ru") {
+        correctText = current.word.ru;
+      } else if (current.formTarget === "plural") {
+        correctText = current.word.plural || current.word.de;
+      } else {
+        correctText = current.word.de;
+      }
       var ansEl = document.getElementById("word-answer");
       if (!ansEl) return;
 

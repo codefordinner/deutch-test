@@ -14,14 +14,27 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = config.databaseUrl;
 }
 
-// Auto-run Prisma db push and initial JSON migration if necessary
+// Auto-run Prisma db push and initial JSON migration only if needed
 function initializeDatabase() {
   try {
     const rootDir = path.join(__dirname, "..", "..");
-    execSync("npx prisma db push --accept-data-loss", { stdio: "inherit", cwd: rootDir });
-    const migrateScript = path.join(rootDir, "migrate-json.js");
-    if (fs.existsSync(migrateScript)) {
-      execSync(`node "${migrateScript}"`, { stdio: "inherit", cwd: rootDir });
+    const prismaDir = path.join(rootDir, "prisma");
+    if (!fs.existsSync(prismaDir)) {
+      fs.mkdirSync(prismaDir, { recursive: true });
+    }
+
+    // Check if SQLite db file exists already
+    const dbFilePath = path.join(prismaDir, "dev.db");
+    const dbSubdirPath = path.join(prismaDir, "prisma", "dev.db");
+    const dbExists = fs.existsSync(dbFilePath) || fs.existsSync(dbSubdirPath);
+
+    if (!dbExists) {
+      console.log("[Database Init] First run detected. Pushing Prisma schema...");
+      execSync("npx prisma db push --accept-data-loss", { stdio: "inherit", cwd: rootDir });
+      const migrateScript = path.join(rootDir, "migrate-json.js");
+      if (fs.existsSync(migrateScript)) {
+        execSync(`node "${migrateScript}"`, { stdio: "inherit", cwd: rootDir });
+      }
     }
   } catch (err) {
     console.warn("[Database Init] Prisma db push / migrate warning:", err.message);
@@ -34,7 +47,17 @@ let prisma;
 try {
   prisma = new PrismaClient();
 } catch (err) {
-  console.warn("[Database Init] PrismaClient initialization error:", err.message);
+  console.warn("[Database Init] PrismaClient initialization error, using in-memory mock fallback:", err.message);
+  const noOp = {
+    findMany: async () => [],
+    findFirst: async () => null,
+    findUnique: async () => null,
+    create: async (d) => d?.data ?? {},
+    update: async (d) => d?.data ?? {},
+    delete: async () => ({}),
+    updateMany: async () => ({ count: 0 })
+  };
+  prisma = new Proxy({}, { get: () => noOp });
 }
 
 module.exports = prisma;

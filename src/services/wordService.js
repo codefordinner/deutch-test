@@ -22,6 +22,8 @@ class WordService {
       id: w.id,
       de: w.de,
       ru: w.ru,
+      plural: w.plural,
+      feminine: w.feminine,
       categoryId: w.categoryId,
       categoryName: w.category ? w.category.name : "Без категории"
     }));
@@ -32,7 +34,7 @@ class WordService {
     };
   }
 
-  async createWord(categoryId, de, ru, force = false) {
+  async createWord(categoryId, de, ru, plural = null, feminine = null, force = false) {
     if (!prisma) throw new Error("База данных недоступна");
 
     const categoryExists = await prisma.category.findUnique({
@@ -55,16 +57,21 @@ class WordService {
       }
     }
 
+    const cleanPlural = plural && String(plural).trim() ? String(plural).trim() : null;
+    const cleanFeminine = feminine && String(feminine).trim() ? String(feminine).trim() : null;
+
     return await prisma.word.create({
       data: {
         de,
         ru,
+        plural: cleanPlural,
+        feminine: cleanFeminine,
         categoryId
       }
     });
   }
 
-  async updateWord(id, de, ru, force = false) {
+  async updateWord(id, de, ru, plural = undefined, feminine = undefined, force = false) {
     if (!prisma) throw new Error("База данных недоступна");
 
     if (!force) {
@@ -78,9 +85,17 @@ class WordService {
       }
     }
 
+    const updateData = { de, ru };
+    if (plural !== undefined) {
+      updateData.plural = plural && String(plural).trim() ? String(plural).trim() : null;
+    }
+    if (feminine !== undefined) {
+      updateData.feminine = feminine && String(feminine).trim() ? String(feminine).trim() : null;
+    }
+
     return await prisma.word.update({
       where: { id },
-      data: { de, ru }
+      data: updateData
     });
   }
 
@@ -178,10 +193,15 @@ class WordService {
         categoriesCreated++;
       }
 
+      const cleanPlural = item.plural && String(item.plural).trim() ? String(item.plural).trim() : null;
+      const cleanFeminine = item.feminine && String(item.feminine).trim() ? String(item.feminine).trim() : null;
+
       await prisma.word.create({
         data: {
           de,
           ru,
+          plural: cleanPlural,
+          feminine: cleanFeminine,
           categoryId: catId
         }
       });

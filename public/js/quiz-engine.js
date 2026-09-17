@@ -204,6 +204,7 @@
       state.lastResult = {
         correct: result.isCorrect,
         answerText: result.correctText,
+        extraFeedback: result.extraFeedback || "",
         srsInfo: result.srsInfo
       };
       renderScoreUI();
@@ -222,7 +223,15 @@
       var srsNote = "";
       if (state.lastResult.srsInfo) {
         var srs = state.lastResult.srsInfo;
-        var dirLabel = state.current && state.current.dir === "de2ru" ? "🇩🇪→🇷🇺" : "🇷🇺→🇩🇪";
+        var dirLabel = "Русский → немецкий";
+        if (state.current && state.current.dir === "de2ru") {
+          dirLabel = "Немецкий → русский";
+        } else if (state.current && state.current.formTarget === "plural") {
+          dirLabel = "Русский → немецкий (мн. ч.)";
+        } else if (state.current && state.current.word && state.current.word.plural) {
+          dirLabel = "Русский → немецкий (ед. ч.)";
+        }
+
         if (state.lastResult.correct) {
           if (srs.newBox === 5) {
             srsNote = '<br><small style="color: #099268; font-weight: 600;">🏆 ' + dirLabel + ' Выучено! (' + srs.levelName + ' — повтор через ' + srs.intervalDays + ' дн.)</small>';
@@ -234,12 +243,16 @@
         }
       }
 
+      var extraFbHtml = state.lastResult.extraFeedback
+        ? '<div style="font-size: 13px; color: #d9480f; margin-top: 4px;">' + state.lastResult.extraFeedback + '</div>'
+        : "";
+
       if (state.lastResult.correct) {
         fbEl.innerHTML = "Верно: " + formatted + srsNote;
         fbEl.style.color = "var(--success)";
         ansEl.style.borderColor = "var(--success-border)";
       } else {
-        fbEl.innerHTML = "Неверно. Правильно: " + formatted + srsNote;
+        fbEl.innerHTML = "Неверно. Правильно: " + formatted + extraFbHtml + srsNote;
         fbEl.style.color = "var(--danger)";
         ansEl.style.borderColor = "var(--danger-border)";
       }

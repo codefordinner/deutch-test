@@ -1,0 +1,72 @@
+{
+  "categories": [
+    {
+      "id": "cat_greetings",
+      "name": "Приветствия и вежливость",
+      "words": [
+        { "id": "w_hallo", "de": "Hallo", "ru": "Привет / Здравствуйте" },
+        { "id": "w_gmorgen", "de": "Guten Morgen", "ru": "Доброе утро" },
+        { "id": "w_gtag", "de": "Guten Tag", "ru": "Добрый день" },
+        { "id": "w_gabend", "de": "Guten Abend", "ru": "Добрый вечер" },
+        { "id": "w_gnacht", "de": "Gute Nacht", "ru": "Спокойной ночи / Доброй ночи" },
+        { "id": "w_tschuess", "de": "Tschüss", "ru": "Пока / До скорого" },
+        { "id": "w_aufwiedersehen", "de": "Auf Wiedersehen", "ru": "До свидания" },
+        { "id": "w_danke", "de": "Danke / Vielen Dank", "ru": "Спасибо / Большое спасибо" },
+        { "id": "w_bitte", "de": "Bitte", "ru": "Пожалуйста" },
+        { "id": "w_entschuldigung", "de": "Entschuldigung", "ru": "Извините / Простите" },
+        { "id": "w_ja", "de": "Ja", "ru": "Да" },
+        { "id": "w_nein", "de": "Nein", "ru": "Нет" }
+      ]
+    },
+    {
+      "id": "cat_verbs",
+      "name": "Основные глаголы (A1)",
+      "words": [
+        { "id": "w_sein", "de": "sein", "ru": "быть / являться" },
+        { "id": "w_haben", "de": "haben", "ru": "иметь" },
+        { "id": "w_machen", "de": "machen", "ru": "делать" },
+        { "id": "w_gehen", "de": "gehen", "ru": "идти / ходить" },
+        { "id": "w_kommen", "de": "kommen", "ru": "приходить / приезжать" },
+        { "id": "w_sprechen", "de": "sprechen", "ru": "говорить / разговаривать" },
+        { "id": "w_verstehen", "de": "verstehen", "ru": "понимать" },
+        { "id": "w_lernen", "de": "lernen", "ru": "учить / учиться" },
+        { "id": "w_arbeiten", "de": "arbeiten", "ru": "работать" },
+        { "id": "w_wohnen", "de": "wohnen", "ru": "жить / проживать" },
+        { "id": "w_essen", "de": "essen", "ru": "есть / кушать" },
+        { "id": "w_trinken", "de": "trinken", "ru": "пить" }
+      ]
+    },
+    {
+      "id": "cat_family",
+      "name": "Семья и люди",
+      "words": [
+        { "id": "w_vater", "de": "der Vater", "ru": "отец / папа", "plural": "die Väter" },
+        { "id": "w_mutter", "de": "die Mutter", "ru": "мать / мама", "plural": "die Mütter" },
+        { "id": "w_eltern", "de": "die Eltern", "ru": "родители" },
+        { "id": "w_sohn", "de": "der Sohn", "ru": "сын", "plural": "die Söhne" },
+        { "id": "w_tochter", "de": "die Tochter", "ru": "дочь", "plural": "die Töchter" },
+        { "id": "w_bruder", "de": "der Bruder", "ru": "брат", "plural": "die Brüder" },
+        { "id": "w_schwester", "de": "die Schwester", "ru": "сестра", "plural": "die Schwestern" },
+        { "id": "w_kind", "de": "das Kind", "ru": "ребёнок / дитя", "plural": "die Kinder" },
+        { "id": "w_familie", "de": "die Familie", "ru": "семья", "plural": "die Familien" },
+        { "id": "w_freund", "de": "der Freund", "ru": "друг", "plural": "die Freunde", "feminine": "die Freundin" },
+        { "id": "w_freundin", "de": "die Freundin", "ru": "подруга", "plural": "die Freundinnen" }
+      ]
+    },
+    {
+      "id": "cat_food",
+      "name": "Еда и напитки",
+      "words": [
+        { "id": "w_brot", "de": "das Brot", "ru": "хлеб", "plural": "die Brote" },
+        { "id": "w_wasser", "de": "das Wasser", "ru": "вода", "plural": "die Wässer" },
+        { "id": "w_kaffee", "de": "der Kaffee", "ru": "кофе" },
+        { "id": "w_tee", "de": "der Tee", "ru": "чай" },
+        { "id": "w_milch", "de": "die Milch", "ru": "молоко" },
+        { "id": "w_apfel", "de": "der Apfel", "ru": "яблоко", "plural": "die Äpfel" },
+        { "id": "w_kaese", "de": "der Käse", "ru": "сыр", "plural": "die Käse" },
+        { "id": "w_fleisch", "de": "das Fleisch", "ru": "мясо" },
+        { "id": "w_zucker", "de": "der Zucker", "ru": "сахар" }
+      ]
+    }
+  ]
+}

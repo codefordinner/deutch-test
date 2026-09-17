@@ -42,10 +42,16 @@
   <p class="empty-note" id="no-categories-note" style="display:none;">Категорий пока нет. Добавь первую выше.</p>
 
   <div class="admin-section" id="category-detail-section" style="display:none;">
-    <div class="inline-form" id="add-word-form">
-      <input type="text" id="new-word-de" placeholder="по-немецки">
-      <input type="text" id="new-word-ru" placeholder="перевод">
-      <button id="add-word-btn">Добавить слово</button>
+    <div class="inline-form" id="add-word-form" style="flex-direction:column; gap:8px;">
+      <div style="display:flex; gap:8px; width:100%; flex-wrap:wrap;">
+        <input type="text" id="new-word-de" placeholder="по-немецки (напр. der Freund)" style="flex:1; min-width:140px;">
+        <input type="text" id="new-word-ru" placeholder="перевод (напр. друг)" style="flex:1; min-width:140px;">
+        <button id="add-word-btn" style="white-space:nowrap;">Добавить слово</button>
+      </div>
+      <div style="display:flex; gap:8px; width:100%; flex-wrap:wrap;">
+        <input type="text" id="new-word-plural" placeholder="мн. число (опционально, напр. die Freunde)" style="flex:1; min-width:140px; font-size:13px;">
+        <input type="text" id="new-word-feminine" placeholder="жен. род (опционально, напр. die Freundin)" style="flex:1; min-width:140px; font-size:13px;">
+      </div>
     </div>
     <div id="duplicate-warning-banner" style="display:none; margin: -6px 0 12px; padding: 8px 12px; background: rgba(220, 53, 69, 0.1); border: 1px solid var(--danger); border-radius: 6px; font-size: 13px; color: var(--danger);"></div>
     <p class="empty-note" id="global-mode-note" style="display:none; padding: 4px 0 12px; margin: 0; text-align: left;">
@@ -86,6 +92,35 @@
       </table>
     </div>
     <p class="empty-note" id="words-empty-note" style="display:none;"></p>
+  </div>
+</div>
+
+<!-- Modal for editing a single word with plural & feminine forms -->
+<div class="modal-overlay hidden" id="edit-word-modal">
+  <div class="modal-box" style="max-width: 480px;">
+    <h2>Редактирование слова</h2>
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:14px; margin-bottom:18px;">
+      <div>
+        <label for="edit-word-de" style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:4px;">Немецкое слово:</label>
+        <input type="text" id="edit-word-de" placeholder="напр. der Freund" style="width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-primary); font-size:14px;">
+      </div>
+      <div>
+        <label for="edit-word-ru" style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:4px;">Перевод на русский:</label>
+        <input type="text" id="edit-word-ru" placeholder="напр. друг" style="width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-primary); font-size:14px;">
+      </div>
+      <div>
+        <label for="edit-word-plural" style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:4px;">Множественное число (опционально):</label>
+        <input type="text" id="edit-word-plural" placeholder="напр. die Freunde или die Kinder" style="width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-primary); font-size:14px;">
+      </div>
+      <div>
+        <label for="edit-word-feminine" style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:4px;">Женский род (опционально):</label>
+        <input type="text" id="edit-word-feminine" placeholder="напр. die Freundin или die Lehrerin" style="width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-primary); font-size:14px;">
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button type="button" class="ghost-btn" id="cancel-edit-btn">Отмена</button>
+      <button type="button" id="confirm-edit-btn">Сохранить</button>
+    </div>
   </div>
 </div>
 

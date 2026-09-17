@@ -33,6 +33,15 @@
   var cancelMoveBtn = document.getElementById("cancel-move-btn");
   var confirmMoveBtn = document.getElementById("confirm-move-btn");
 
+  var editWordModal = document.getElementById("edit-word-modal");
+  var editWordDe = document.getElementById("edit-word-de");
+  var editWordRu = document.getElementById("edit-word-ru");
+  var editWordPlural = document.getElementById("edit-word-plural");
+  var editWordFeminine = document.getElementById("edit-word-feminine");
+  var cancelEditBtn = document.getElementById("cancel-edit-btn");
+  var confirmEditBtn = document.getElementById("confirm-edit-btn");
+  var currentEditingWordId = null;
+
   function api(url, options) {
     if (window.ApiClient) {
       options = options || {};
@@ -168,6 +177,8 @@
             id: w.id,
             de: w.de,
             ru: w.ru,
+            plural: w.plural || null,
+            feminine: w.feminine || null,
             categoryId: cat.id,
             categoryName: cat.name
           });
@@ -181,6 +192,8 @@
             id: w.id,
             de: w.de,
             ru: w.ru,
+            plural: w.plural || null,
+            feminine: w.feminine || null,
             categoryId: cat.id,
             categoryName: cat.name
           });
@@ -193,6 +206,8 @@
     return wordsList.filter(function (w) {
       return w.de.toLowerCase().indexOf(filterVal) !== -1 ||
              w.ru.toLowerCase().indexOf(filterVal) !== -1 ||
+             (w.plural && w.plural.toLowerCase().indexOf(filterVal) !== -1) ||
+             (w.feminine && w.feminine.toLowerCase().indexOf(filterVal) !== -1) ||
              (w.categoryName && w.categoryName.toLowerCase().indexOf(filterVal) !== -1);
     });
   }
@@ -260,7 +275,18 @@
     var deTd = document.createElement("td");
     var ruTd = document.createElement("td");
 
-    deTd.innerHTML = formatGermanGender(word.de);
+    var deHtml = '<div style="font-weight: 500;">' + formatGermanGender(word.de) + '</div>';
+    if (word.plural || word.feminine) {
+      deHtml += '<div class="word-extra-forms">';
+      if (word.plural) {
+        deHtml += '<span class="form-badge plural-badge" title="Множественное число">мн. ч.: ' + formatGermanGender(word.plural) + '</span>';
+      }
+      if (word.feminine) {
+        deHtml += '<span class="form-badge fem-badge" title="Женский род">ж. р.: ' + formatGermanGender(word.feminine) + '</span>';
+      }
+      deHtml += '</div>';
+    }
+    deTd.innerHTML = deHtml;
     ruTd.textContent = word.ru;
 
     tr.appendChild(cbTd);
@@ -281,18 +307,7 @@
     editBtn.textContent = "Изменить";
     editBtn.style.marginRight = "4px";
     editBtn.addEventListener("click", function () {
-      var newDe = prompt("Немецкий вариант:", word.de);
-      if (newDe === null) return;
-      var newRu = prompt("Перевод:", word.ru);
-      if (newRu === null) return;
-      newDe = newDe.trim();
-      newRu = newRu.trim();
-      if (!newDe || !newRu) return;
-      api("/api/words/" + word.id, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ de: newDe, ru: newRu })
-      }).then(loadCategories).catch(function (e) { alert(e.message); });
+      openEditWordModal(word);
     });
 
     var moveBtn = document.createElement("button");
@@ -466,8 +481,65 @@
   // Live duplicate checking
   var deInput = document.getElementById("new-word-de");
   var ruInput = document.getElementById("new-word-ru");
+  var pluralInput = document.getElementById("new-word-plural");
+  var feminineInput = document.getElementById("new-word-feminine");
   var dupBanner = document.getElementById("duplicate-warning-banner");
   var dupTimer = null;
+
+  function openEditWordModal(word) {
+    if (!editWordModal) return;
+    currentEditingWordId = word.id;
+    if (editWordDe) editWordDe.value = word.de || "";
+    if (editWordRu) editWordRu.value = word.ru || "";
+    if (editWordPlural) editWordPlural.value = word.plural || "";
+    if (editWordFeminine) editWordFeminine.value = word.feminine || "";
+    editWordModal.classList.remove("hidden");
+    if (editWordDe) editWordDe.focus();
+  }
+
+  function closeEditWordModal() {
+    if (!editWordModal) return;
+    editWordModal.classList.add("hidden");
+    currentEditingWordId = null;
+  }
+
+  if (cancelEditBtn) {
+    cancelEditBtn.addEventListener("click", closeEditWordModal);
+  }
+
+  if (confirmEditBtn) {
+    confirmEditBtn.addEventListener("click", function () {
+      if (!currentEditingWordId) return;
+      var newDe = editWordDe.value.trim();
+      var newRu = editWordRu.value.trim();
+      var newPlural = editWordPlural ? editWordPlural.value.trim() : "";
+      var newFeminine = editWordFeminine ? editWordFeminine.value.trim() : "";
+
+      if (!newDe || !newRu) {
+        alert("Необходимо заполнить немецкое слово и перевод.");
+        return;
+      }
+
+      confirmEditBtn.disabled = true;
+      api("/api/words/" + currentEditingWordId, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          de: newDe,
+          ru: newRu,
+          plural: newPlural || null,
+          feminine: newFeminine || null
+        })
+      }).then(function () {
+        closeEditWordModal();
+        loadCategories();
+      }).catch(function (e) {
+        alert(e.message);
+      }).finally(function () {
+        confirmEditBtn.disabled = false;
+      });
+    });
+  }
 
   function checkLiveDuplicates() {
     if (!deInput || !ruInput || !dupBanner) return;
@@ -509,21 +581,29 @@
   if (deInput) deInput.addEventListener("input", scheduleDupCheck);
   if (ruInput) ruInput.addEventListener("input", scheduleDupCheck);
 
-  function createWordRequest(catId, de, ru, force) {
+  function createWordRequest(catId, de, ru, plural, feminine, force) {
     var url = "/api/categories/" + catId + "/words" + (force ? "?force=true" : "");
     return api(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ de: de, ru: ru, force: force })
+      body: JSON.stringify({
+        de: de,
+        ru: ru,
+        plural: plural || null,
+        feminine: feminine || null,
+        force: force
+      })
     }).then(function () {
       deInput.value = "";
       ruInput.value = "";
+      if (pluralInput) pluralInput.value = "";
+      if (feminineInput) feminineInput.value = "";
       if (dupBanner) dupBanner.style.display = "none";
       loadCategories();
     }).catch(function (e) {
       if (e.message && e.message.indexOf("уже существует") !== -1) {
         if (confirm(e.message + "\n\nВсё равно добавить это слово как дубликат?")) {
-          createWordRequest(catId, de, ru, true);
+          createWordRequest(catId, de, ru, plural, feminine, true);
         }
       } else {
         alert(e.message);
@@ -537,8 +617,10 @@
     if (!cat) { alert("Выберите конкретную категорию для добавления слова."); return; }
     var de = deInput.value.trim();
     var ru = ruInput.value.trim();
-    if (!de || !ru) { alert("Заполни оба поля"); return; }
-    createWordRequest(cat.id, de, ru, false);
+    var plural = pluralInput ? pluralInput.value.trim() : null;
+    var feminine = feminineInput ? feminineInput.value.trim() : null;
+    if (!de || !ru) { alert("Заполни оба обязательных поля (немецкий и перевод)"); return; }
+    createWordRequest(cat.id, de, ru, plural, feminine, false);
   });
 
   // New category
@@ -607,6 +689,8 @@
           exportWords.push({
             de: w.de,
             ru: w.ru,
+            plural: w.plural || null,
+            feminine: w.feminine || null,
             category: cat.name
           });
         });
@@ -626,20 +710,27 @@
         mimeType = "application/json;charset=utf-8";
         fileExt = "json";
       } else if (format === "anki") {
-        // Anki TSV format: German [tab] Russian [tab] Category
+        // Anki TSV format: German (with forms) [tab] Russian [tab] Plural [tab] Feminine [tab] Category
         content = exportWords.map(function (w) {
-          return w.de + "\t" + w.ru + "\t" + w.category;
+          var deWithForms = w.de;
+          var extras = [];
+          if (w.plural) extras.push("мн: " + w.plural);
+          if (w.feminine) extras.push("ж: " + w.feminine);
+          if (extras.length) deWithForms += " (" + extras.join(", ") + ")";
+          return deWithForms + "\t" + w.ru + "\t" + (w.plural || "") + "\t" + (w.feminine || "") + "\t" + w.category;
         }).join("\n");
         mimeType = "text/plain;charset=utf-8";
         fileExt = "txt";
       } else {
         // CSV with semicolon (Excel compatible with BOM)
-        var lines = ["\uFEFFНемецкий;Перевод;Категория"];
+        var lines = ["\uFEFFНемецкий;Перевод;Множественное число;Женский род;Категория"];
         exportWords.forEach(function (w) {
-          var cleanDe = '"' + w.de.replace(/"/g, '""') + '"';
-          var cleanRu = '"' + w.ru.replace(/"/g, '""') + '"';
-          var cleanCat = '"' + w.category.replace(/"/g, '""') + '"';
-          lines.push(cleanDe + ";" + cleanRu + ";" + cleanCat);
+          var cleanDe = '"' + (w.de || "").replace(/"/g, '""') + '"';
+          var cleanRu = '"' + (w.ru || "").replace(/"/g, '""') + '"';
+          var cleanPlural = '"' + (w.plural || "").replace(/"/g, '""') + '"';
+          var cleanFem = '"' + (w.feminine || "").replace(/"/g, '""') + '"';
+          var cleanCat = '"' + (w.category || "").replace(/"/g, '""') + '"';
+          lines.push(cleanDe + ";" + cleanRu + ";" + cleanPlural + ";" + cleanFem + ";" + cleanCat);
         });
         content = lines.join("\n");
         mimeType = "text/csv;charset=utf-8";
@@ -734,9 +825,17 @@
         arr.forEach(function (item) {
           var de = item.de || item.german || item.word || "";
           var ru = item.ru || item.russian || item.translation || "";
+          var plural = item.plural || item.pl || null;
+          var feminine = item.feminine || item.fem || null;
           var cat = item.category || item.categoryName || "";
           if (de && ru) {
-            parsedImportItems.push({ de: String(de).trim(), ru: String(ru).trim(), categoryName: String(cat).trim() });
+            parsedImportItems.push({
+              de: String(de).trim(),
+              ru: String(ru).trim(),
+              plural: plural ? String(plural).trim() : null,
+              feminine: feminine ? String(feminine).trim() : null,
+              categoryName: String(cat).trim()
+            });
           }
         });
       } catch (err) {}
@@ -759,11 +858,32 @@
         }
 
         if (parts.length >= 2) {
-          var de = parts[0].replace(/^["']|["']$/g, "").trim();
-          var ru = parts[1].replace(/^["']|["']$/g, "").trim();
-          var cat = parts[2] ? parts[2].replace(/^["']|["']$/g, "").trim() : "";
+          var cleanParts = parts.map(function (p) { return p.replace(/^["']|["']$/g, "").trim(); });
+          var de = cleanParts[0];
+          var ru = cleanParts[1];
+          var plural = null;
+          var feminine = null;
+          var cat = "";
+
+          if (cleanParts.length >= 5) {
+            plural = cleanParts[2] || null;
+            feminine = cleanParts[3] || null;
+            cat = cleanParts[4] || "";
+          } else if (cleanParts.length === 4) {
+            plural = cleanParts[2] || null;
+            feminine = cleanParts[3] || null;
+          } else if (cleanParts.length === 3) {
+            cat = cleanParts[2] || "";
+          }
+
           if (de && ru) {
-            parsedImportItems.push({ de: de, ru: ru, categoryName: cat });
+            parsedImportItems.push({
+              de: de,
+              ru: ru,
+              plural: plural,
+              feminine: feminine,
+              categoryName: cat
+            });
           }
         }
       });
@@ -778,8 +898,15 @@
       var previewRows = parsedImportItems.slice(0, 25);
       var html = "";
       previewRows.forEach(function (item) {
+        var deDisplay = item.de;
+        if (item.plural || item.feminine) {
+          var extras = [];
+          if (item.plural) extras.push("мн: " + item.plural);
+          if (item.feminine) extras.push("ж: " + item.feminine);
+          deDisplay += ' <span style="font-size:11px; color:var(--accent);">(' + extras.join(", ") + ')</span>';
+        }
         html += '<tr style="border-bottom: 1px solid var(--border);">';
-        html += '  <td style="padding: 4px 8px; font-weight: 500;">' + item.de + '</td>';
+        html += '  <td style="padding: 4px 8px; font-weight: 500;">' + deDisplay + '</td>';
         html += '  <td style="padding: 4px 8px;">' + item.ru + '</td>';
         html += '  <td style="padding: 4px 8px; color: var(--text-secondary);">' + (item.categoryName || "(из настроек)") + '</td>';
         html += '</tr>';
