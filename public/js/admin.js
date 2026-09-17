@@ -1,964 +1,1323 @@
+/**
+ * Modern Admin Panel Controller for German Trainer
+ * Version 1.1.0
+ */
 (function () {
-  var categories = [];
-  var selectedCategoryId = null; // Can be a category ID or "__ALL__"
-  var selectedWordIds = new Set();
-  var wordsToMove = [];
+  // State
+  let categories = [];
+  let currentCategoryId = "all"; // 'all' or category id
+  let currentCategoryWords = [];
+  let allWordsCache = [];
+  let selectedWordIds = new Set();
+  let editingWord = null; // null if adding, word object if editing
 
-  var categorySelect = document.getElementById("category-select");
-  var pickerSection = document.getElementById("category-picker-section");
-  var noCategoriesNote = document.getElementById("no-categories-note");
-  var detailSection = document.getElementById("category-detail-section");
-  var addWordForm = document.getElementById("add-word-form");
-  var globalModeNote = document.getElementById("global-mode-note");
-  var filterInput = document.getElementById("word-filter-input");
-  var globalSearchCb = document.getElementById("global-search-cb");
-  var renameCatBtn = document.getElementById("rename-category-btn");
-  var deleteCatBtn = document.getElementById("delete-category-btn");
+  // Analytics State
+  let analyticsStats = null;
+  let analyticsLogs = [];
+  let currentLogsPage = 1;
+  let totalLogsPages = 1;
+  let analyticsPollInterval = null;
 
-  var batchActionsBar = document.getElementById("batch-actions-bar");
-  var selectedCountEl = document.getElementById("selected-count");
-  var batchOpenMoveBtn = document.getElementById("batch-open-move-btn");
-  var batchDeleteBtn = document.getElementById("batch-delete-btn");
-  var batchCancelBtn = document.getElementById("batch-cancel-btn");
+  // DOM Elements
+  const navTabs = document.querySelectorAll(".admin-nav-btn");
+  const tabContents = document.querySelectorAll(".admin-tab-content");
+  const categoryPillsContainer = document.getElementById("category-pills-container");
+  const activeCategoryTitle = document.getElementById("active-category-title");
+  const activeCategorySubtitle = document.getElementById("active-category-subtitle");
+  const renameCategoryBtn = document.getElementById("rename-category-btn");
+  const deleteCategoryBtn = document.getElementById("delete-category-btn");
+  const openAddCategoryBtn = document.getElementById("open-add-category-btn");
+  const openAddWordBtn = document.getElementById("open-add-word-btn");
 
-  var selectAllCb = document.getElementById("select-all-words");
-  var thCategory = document.getElementById("th-category");
-  var wordsTable = document.getElementById("words-table");
-  var wordsTbody = document.getElementById("words-tbody");
-  var wordsEmptyNote = document.getElementById("words-empty-note");
+  const wordFilterInput = document.getElementById("word-filter-input");
+  const clearSearchBtn = document.getElementById("clear-search-btn");
+  const globalSearchCb = document.getElementById("global-search-cb");
+  const selectAllWordsCb = document.getElementById("select-all-words");
+  const wordsTbody = document.getElementById("words-tbody");
+  const wordsEmptyNote = document.getElementById("words-empty-note");
+  const thCategory = document.getElementById("th-category");
 
-  var moveModal = document.getElementById("move-modal");
-  var moveModalText = document.getElementById("move-modal-text");
-  var moveTargetCategory = document.getElementById("move-target-category");
-  var cancelMoveBtn = document.getElementById("cancel-move-btn");
-  var confirmMoveBtn = document.getElementById("confirm-move-btn");
+  // Batch actions
+  const batchActionsBar = document.getElementById("batch-actions-bar");
+  const selectedCountSpan = document.getElementById("selected-count");
+  const batchOpenMoveBtn = document.getElementById("batch-open-move-btn");
+  const batchDeleteBtn = document.getElementById("batch-delete-btn");
+  const batchCancelBtn = document.getElementById("batch-cancel-btn");
 
-  var editWordModal = document.getElementById("edit-word-modal");
-  var editWordDe = document.getElementById("edit-word-de");
-  var editWordRu = document.getElementById("edit-word-ru");
-  var editWordPlural = document.getElementById("edit-word-plural");
-  var editWordFeminine = document.getElementById("edit-word-feminine");
-  var cancelEditBtn = document.getElementById("cancel-edit-btn");
-  var confirmEditBtn = document.getElementById("confirm-edit-btn");
-  var currentEditingWordId = null;
+  // Modals
+  const wordModal = document.getElementById("word-modal");
+  const wordModalTitle = document.getElementById("word-modal-title");
+  const wordModalCategory = document.getElementById("word-modal-category");
+  const wordModalDe = document.getElementById("word-modal-de");
+  const wordModalRu = document.getElementById("word-modal-ru");
+  const wordModalPlural = document.getElementById("word-modal-plural");
+  const wordModalFeminine = document.getElementById("word-modal-feminine");
+  const wordModalDupBanner = document.getElementById("word-modal-dup-banner");
+  const wordModalCancelBtn = document.getElementById("word-modal-cancel-btn");
+  const wordModalSaveBtn = document.getElementById("word-modal-save-btn");
 
-  function api(url, options) {
-    if (window.ApiClient) {
-      options = options || {};
-      var method = (options.method || "GET").toUpperCase();
-      var body = options.body ? (typeof options.body === "string" ? JSON.parse(options.body) : options.body) : undefined;
-      if (method === "POST") return window.ApiClient.post(url, body);
-      if (method === "PUT") return window.ApiClient.put(url, body);
-      if (method === "DELETE") return window.ApiClient.delete(url);
-      return window.ApiClient.get(url);
-    }
-    return fetch(url, options).then(function (r) {
-      if (r.status === 401) {
-        window.location.href = "/admin-login.html";
-        throw new Error("Сессия истекла");
+  const categoryModal = document.getElementById("category-modal");
+  const categoryModalTitle = document.getElementById("category-modal-title");
+  const categoryModalLabel = document.getElementById("category-modal-label");
+  const categoryModalInput = document.getElementById("category-modal-input");
+  const categoryModalCancelBtn = document.getElementById("category-modal-cancel-btn");
+  const categoryModalSaveBtn = document.getElementById("category-modal-save-btn");
+
+  const moveModal = document.getElementById("move-modal");
+  const moveModalText = document.getElementById("move-modal-text");
+  const moveTargetCategory = document.getElementById("move-target-category");
+  const cancelMoveBtn = document.getElementById("cancel-move-btn");
+  const confirmMoveBtn = document.getElementById("confirm-move-btn");
+
+  const confirmModal = document.getElementById("confirm-modal");
+  const confirmModalTitle = document.getElementById("confirm-modal-title");
+  const confirmModalMessage = document.getElementById("confirm-modal-message");
+  const confirmModalCancelBtn = document.getElementById("confirm-modal-cancel-btn");
+  const confirmModalOkBtn = document.getElementById("confirm-modal-ok-btn");
+
+  const toastContainer = document.getElementById("toast-container");
+
+  // ==================== TOAST & DIALOG HELPERS ====================
+
+  function showToast(message, type = "info", duration = 3500) {
+    if (!toastContainer) return;
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    
+    let icon = "ℹ️";
+    if (type === "success") icon = "✅";
+    if (type === "error") icon = "⚠️";
+
+    toast.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span>${icon}</span>
+        <span>${escapeHtml(message)}</span>
+      </div>
+      <button type="button" class="toast-close" title="Закрыть">✕</button>
+    `;
+
+    toast.querySelector(".toast-close").addEventListener("click", () => {
+      toast.remove();
+    });
+
+    toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(10px)";
+        setTimeout(() => toast.remove(), 250);
       }
-      if (!r.ok) {
-        return r.json().then(function (err) { throw new Error(err.error || "Ошибка запроса"); });
-      }
-      if (r.status === 204) return null;
-      return r.json();
+    }, duration);
+  }
+
+  let confirmResolve = null;
+  function showConfirmDialog(title, message, okText = "Подтвердить", isDanger = true) {
+    return new Promise((resolve) => {
+      confirmResolve = resolve;
+      confirmModalTitle.textContent = title;
+      confirmModalMessage.textContent = message;
+      confirmModalOkBtn.textContent = okText;
+      confirmModalOkBtn.className = isDanger ? "danger-btn" : "";
+      confirmModal.classList.remove("hidden");
+      document.body.classList.add("modal-open");
     });
   }
 
-  function currentCategory() {
-    if (selectedCategoryId === "__ALL__") return null;
-    return categories.find(function (c) { return c.id === selectedCategoryId; });
-  }
+  confirmModalCancelBtn.addEventListener("click", () => {
+    confirmModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    if (confirmResolve) confirmResolve(false);
+  });
 
-  function isGlobalMode() {
-    return selectedCategoryId === "__ALL__" || (globalSearchCb && globalSearchCb.checked);
-  }
+  confirmModalOkBtn.addEventListener("click", () => {
+    confirmModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    if (confirmResolve) confirmResolve(true);
+  });
 
-  function loadCategories() {
-    api("/api/categories").then(function (data) {
-      categories = data;
-      // Filter out invalid selectedWordIds
-      var allValidWordIds = new Set();
-      categories.forEach(function (c) {
-        c.words.forEach(function (w) { allValidWordIds.add(w.id); });
-      });
-      selectedWordIds.forEach(function (id) {
-        if (!allValidWordIds.has(id)) selectedWordIds.delete(id);
-      });
-
-      if (categories.length === 0) {
-        selectedCategoryId = null;
-      } else if (!selectedCategoryId) {
-        selectedCategoryId = categories[0].id;
-      }
-
-      renderCategorySelect();
-      renderCategoryDetail();
-      updateBatchBar();
-    }).catch(function (e) {
-      pickerSection.style.display = "none";
-      detailSection.style.display = "none";
-      noCategoriesNote.style.display = "block";
-      noCategoriesNote.textContent = "Не удалось загрузить: " + e.message;
+  let promptResolve = null;
+  function showCategoryModal(title, label, defaultValue = "", placeholder = "") {
+    return new Promise((resolve) => {
+      promptResolve = resolve;
+      categoryModalTitle.textContent = title;
+      categoryModalLabel.textContent = label;
+      categoryModalInput.value = defaultValue;
+      categoryModalInput.placeholder = placeholder;
+      categoryModal.classList.remove("hidden");
+      document.body.classList.add("modal-open");
+      setTimeout(() => categoryModalInput.focus(), 50);
     });
   }
 
-  function renderCategorySelect() {
-    if (categories.length === 0) {
-      pickerSection.style.display = "none";
-      detailSection.style.display = "none";
-      noCategoriesNote.style.display = "block";
-      noCategoriesNote.textContent = "Категорий пока нет. Добавь первую выше.";
+  categoryModalCancelBtn.addEventListener("click", () => {
+    categoryModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    if (promptResolve) promptResolve(null);
+  });
+
+  categoryModalSaveBtn.addEventListener("click", () => {
+    const val = categoryModalInput.value.trim();
+    if (!val) {
+      showToast("Пожалуйста, введите название", "error");
+      categoryModalInput.focus();
       return;
     }
-    noCategoriesNote.style.display = "none";
-    pickerSection.style.display = "block";
-    categorySelect.innerHTML = "";
+    categoryModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    if (promptResolve) promptResolve(val);
+  });
 
-    var totalWords = 0;
-    categories.forEach(function (c) { totalWords += c.words.length; });
+  categoryModalInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      categoryModalSaveBtn.click();
+    } else if (e.key === "Escape") {
+      categoryModalCancelBtn.click();
+    }
+  });
 
-    // Global option
-    var globalOpt = document.createElement("option");
-    globalOpt.value = "__ALL__";
-    globalOpt.textContent = "🔍 Все словари (" + totalWords + ")";
-    if (selectedCategoryId === "__ALL__") globalOpt.selected = true;
-    categorySelect.appendChild(globalOpt);
-
-    // Individual category options
-    categories.forEach(function (cat) {
-      var opt = document.createElement("option");
-      opt.value = cat.id;
-      opt.textContent = cat.name + " (" + cat.words.length + ")";
-      if (cat.id === selectedCategoryId) opt.selected = true;
-      categorySelect.appendChild(opt);
+  // Modal overlay click to close
+  document.querySelectorAll(".modal-overlay").forEach(overlay => {
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+      }
     });
-
-    if (globalSearchCb) {
-      globalSearchCb.checked = (selectedCategoryId === "__ALL__");
-    }
-  }
-
-  function renderCategoryDetail() {
-    if (categories.length === 0) {
-      detailSection.style.display = "none";
-      return;
-    }
-    detailSection.style.display = "block";
-
-    var globalMode = isGlobalMode();
-
-    if (globalMode) {
-      renameCatBtn.style.display = "none";
-      deleteCatBtn.style.display = "none";
-      addWordForm.style.display = "none";
-      globalModeNote.style.display = "block";
-      thCategory.style.display = "";
-    } else {
-      renameCatBtn.style.display = "inline-block";
-      deleteCatBtn.style.display = "inline-block";
-      addWordForm.style.display = "flex";
-      globalModeNote.style.display = "none";
-      thCategory.style.display = "none";
-    }
-
-    renderWordsTable();
-  }
-
-  function getVisibleWords() {
-    var globalMode = isGlobalMode();
-    var filterVal = filterInput.value.trim().toLowerCase();
-    var wordsList = [];
-
-    if (globalMode) {
-      categories.forEach(function (cat) {
-        cat.words.forEach(function (w) {
-          wordsList.push({
-            id: w.id,
-            de: w.de,
-            ru: w.ru,
-            plural: w.plural || null,
-            feminine: w.feminine || null,
-            categoryId: cat.id,
-            categoryName: cat.name
-          });
-        });
+    const closeBtn = overlay.querySelector(".js-modal-close");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
       });
+    }
+  });
+
+  // ==================== NAVIGATION TABS ====================
+
+  navTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const targetId = tab.dataset.tab;
+      navTabs.forEach((t) => t.classList.remove("active"));
+      tabContents.forEach((c) => c.classList.remove("active"));
+      tab.classList.add("active");
+      const activeContent = document.getElementById(targetId);
+      if (activeContent) activeContent.classList.add("active");
+
+      if (targetId === "tab-analytics") {
+        loadAnalyticsData();
+        startAnalyticsAutoPoll();
+      } else {
+        stopAnalyticsAutoPoll();
+      }
+
+      if (targetId === "tab-io") {
+        populateCategoryDropdowns();
+      }
+    });
+  });
+
+  // ==================== DATA LOADING ====================
+
+  async function loadInitialData() {
+    try {
+      categories = await ApiClient.get("/api/categories");
+      await loadWordsForCurrentCategory();
+      renderCategoryPills();
+      populateCategoryDropdowns();
+    } catch (err) {
+      showToast("Ошибка загрузки данных: " + err.message, "error");
+    }
+  }
+
+  async function loadWordsForCurrentCategory() {
+    try {
+      if (currentCategoryId === "all") {
+        currentCategoryWords = await ApiClient.get("/api/words");
+        allWordsCache = currentCategoryWords.slice();
+      } else {
+        const cat = await ApiClient.get(`/api/categories/${currentCategoryId}`);
+        currentCategoryWords = cat.words || [];
+        // Refresh allWordsCache in background for duplicate checking
+        ApiClient.get("/api/words").then(w => { allWordsCache = w || []; }).catch(() => {});
+      }
+      selectedWordIds.clear();
+      updateBatchActionsBar();
+      renderWordsTable();
+      updateCategoryHeader();
+    } catch (err) {
+      showToast("Ошибка загрузки слов: " + err.message, "error");
+    }
+  }
+
+  function renderCategoryPills() {
+    if (!categoryPillsContainer) return;
+    categoryPillsContainer.innerHTML = "";
+
+    const totalWords = categories.reduce((sum, c) => sum + (c._count?.words || c.words?.length || 0), 0);
+
+    // "All categories" pill
+    const allBtn = document.createElement("button");
+    allBtn.type = "button";
+    allBtn.className = `cat-pill-btn ${currentCategoryId === "all" ? "active" : ""}`;
+    allBtn.innerHTML = `<span>Все категории</span><span class="cat-pill-count">${totalWords}</span>`;
+    allBtn.addEventListener("click", () => {
+      currentCategoryId = "all";
+      renderCategoryPills();
+      loadWordsForCurrentCategory();
+    });
+    categoryPillsContainer.appendChild(allBtn);
+
+    // Individual category pills
+    categories.forEach((cat) => {
+      const count = cat._count?.words !== undefined ? cat._count.words : (cat.words?.length || 0);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `cat-pill-btn ${currentCategoryId === cat.id ? "active" : ""}`;
+      btn.innerHTML = `<span>${escapeHtml(cat.name)}</span><span class="cat-pill-count">${count}</span>`;
+      btn.addEventListener("click", () => {
+        currentCategoryId = cat.id;
+        renderCategoryPills();
+        loadWordsForCurrentCategory();
+      });
+      categoryPillsContainer.appendChild(btn);
+    });
+  }
+
+  function updateCategoryHeader() {
+    if (currentCategoryId === "all") {
+      activeCategoryTitle.textContent = "Все категории";
+      activeCategorySubtitle.textContent = `Всего слов: ${currentCategoryWords.length}`;
+      renameCategoryBtn.style.display = "none";
+      deleteCategoryBtn.style.display = "none";
+      if (thCategory) thCategory.style.display = "";
     } else {
-      var cat = currentCategory();
+      const cat = categories.find((c) => c.id === currentCategoryId);
       if (cat) {
-        cat.words.forEach(function (w) {
-          wordsList.push({
-            id: w.id,
-            de: w.de,
-            ru: w.ru,
-            plural: w.plural || null,
-            feminine: w.feminine || null,
-            categoryId: cat.id,
-            categoryName: cat.name
-          });
-        });
+        activeCategoryTitle.textContent = cat.name;
+        activeCategorySubtitle.textContent = `Слов в категории: ${currentCategoryWords.length}`;
+        renameCategoryBtn.style.display = "";
+        deleteCategoryBtn.style.display = "";
       }
+      if (thCategory && !globalSearchCb.checked) thCategory.style.display = "none";
     }
+  }
 
-    if (!filterVal) return wordsList;
+  function populateCategoryDropdowns() {
+    const dropdowns = [
+      wordModalCategory,
+      moveTargetCategory,
+      document.getElementById("export-scope-select"),
+      document.getElementById("import-target-cat")
+    ];
 
-    return wordsList.filter(function (w) {
-      return w.de.toLowerCase().indexOf(filterVal) !== -1 ||
-             w.ru.toLowerCase().indexOf(filterVal) !== -1 ||
-             (w.plural && w.plural.toLowerCase().indexOf(filterVal) !== -1) ||
-             (w.feminine && w.feminine.toLowerCase().indexOf(filterVal) !== -1) ||
-             (w.categoryName && w.categoryName.toLowerCase().indexOf(filterVal) !== -1);
+    dropdowns.forEach((dd) => {
+      if (!dd) return;
+      const prevVal = dd.value;
+      dd.innerHTML = "";
+
+      if (dd.id === "export-scope-select") {
+        const optAll = document.createElement("option");
+        optAll.value = "all";
+        optAll.textContent = "Весь словарь (все категории)";
+        dd.appendChild(optAll);
+      }
+
+      categories.forEach((cat) => {
+        const opt = document.createElement("option");
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        dd.appendChild(opt);
+      });
+
+      if (prevVal && dd.querySelector(`option[value="${prevVal}"]`)) {
+        dd.value = prevVal;
+      } else if (currentCategoryId !== "all" && dd.querySelector(`option[value="${currentCategoryId}"]`)) {
+        dd.value = currentCategoryId;
+      }
     });
+  }
+
+  // ==================== WORD TABLE RENDERING ====================
+
+  function formatGermanWord(deText) {
+    if (!deText) return "";
+    const lower = deText.toLowerCase().trim();
+    if (lower.startsWith("der ")) {
+      return `<span class="gender-der">der</span> ${escapeHtml(deText.slice(4))}`;
+    } else if (lower.startsWith("die ")) {
+      return `<span class="gender-die">die</span> ${escapeHtml(deText.slice(4))}`;
+    } else if (lower.startsWith("das ")) {
+      return `<span class="gender-das">das</span> ${escapeHtml(deText.slice(4))}`;
+    }
+    return escapeHtml(deText);
   }
 
   function renderWordsTable() {
+    if (!wordsTbody) return;
     wordsTbody.innerHTML = "";
-    var visibleWords = getVisibleWords();
-    var globalMode = isGlobalMode();
 
-    if (visibleWords.length === 0) {
-      wordsTable.style.display = "none";
+    const query = (wordFilterInput.value || "").trim().toLowerCase();
+    const isGlobal = globalSearchCb.checked || currentCategoryId === "all";
+
+    if (thCategory) {
+      thCategory.style.display = isGlobal ? "" : "none";
+    }
+
+    let sourceList = currentCategoryWords;
+    if (globalSearchCb.checked && currentCategoryId !== "all") {
+      sourceList = allWordsCache;
+    }
+
+    const filtered = sourceList.filter((word) => {
+      if (!query) return true;
+      const de = (word.de || "").toLowerCase();
+      const ru = (word.ru || "").toLowerCase();
+      const plural = (word.plural || "").toLowerCase();
+      const feminine = (word.feminine || "").toLowerCase();
+      const catName = (word.category?.name || "").toLowerCase();
+      return de.includes(query) || ru.includes(query) || plural.includes(query) || feminine.includes(query) || catName.includes(query);
+    });
+
+    if (filtered.length === 0) {
+      wordsTbody.innerHTML = "";
       wordsEmptyNote.style.display = "block";
-      if (filterInput.value.trim()) {
-        wordsEmptyNote.textContent = "Ничего не найдено по запросу «" + filterInput.value.trim() + "».";
-      } else {
-        wordsEmptyNote.textContent = globalMode ? "В словарях пока нет слов." : "В этой категории пока нет слов.";
-      }
-      selectAllCb.checked = false;
+      wordsEmptyNote.textContent = query
+        ? "По вашему запросу ничего не найдено"
+        : "В этой категории пока нет слов. Нажмите «Добавить слово», чтобы начать!";
+      selectAllWordsCb.checked = false;
       return;
     }
 
-    wordsTable.style.display = "table";
     wordsEmptyNote.style.display = "none";
 
-    visibleWords.forEach(function (word) {
-      wordsTbody.appendChild(buildWordRow(word, globalMode));
-    });
+    const allFilteredSelected = filtered.length > 0 && filtered.every((w) => selectedWordIds.has(w.id));
+    selectAllWordsCb.checked = allFilteredSelected;
 
-    // Update select-all header checkbox
-    var allChecked = visibleWords.every(function (w) { return selectedWordIds.has(w.id); });
-    selectAllCb.checked = visibleWords.length > 0 && allChecked;
-  }
+    filtered.forEach((word) => {
+      const tr = document.createElement("tr");
+      const isChecked = selectedWordIds.has(word.id);
 
-  function formatGermanGender(text) {
-    if (!text || typeof text !== "string") return text || "";
-    var safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return safe.replace(/\b(der|die|das)\b/gi, function (match) {
-      var lower = match.toLowerCase();
-      return '<span class="gender-' + lower + '">' + match + '</span>';
-    });
-  }
-
-  function buildWordRow(word, globalMode) {
-    var tr = document.createElement("tr");
-
-    // Checkbox column
-    var cbTd = document.createElement("td");
-    cbTd.style.textAlign = "center";
-    var cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.className = "word-checkbox";
-    cb.checked = selectedWordIds.has(word.id);
-    cb.addEventListener("change", function () {
-      if (cb.checked) {
-        selectedWordIds.add(word.id);
-      } else {
-        selectedWordIds.delete(word.id);
-      }
-      updateBatchBar();
-      var visible = getVisibleWords();
-      selectAllCb.checked = visible.length > 0 && visible.every(function (w) { return selectedWordIds.has(w.id); });
-    });
-    cbTd.appendChild(cb);
-
-    var deTd = document.createElement("td");
-    var ruTd = document.createElement("td");
-
-    var deHtml = '<div style="font-weight: 500;">' + formatGermanGender(word.de) + '</div>';
-    if (word.plural || word.feminine) {
-      deHtml += '<div class="word-extra-forms">';
+      let extraBadgesHtml = "";
       if (word.plural) {
-        deHtml += '<span class="form-badge plural-badge" title="Множественное число">мн. ч.: ' + formatGermanGender(word.plural) + '</span>';
+        extraBadgesHtml += `<span class="form-badge plural-badge" title="Множественное число">мн.ч: ${escapeHtml(word.plural)}</span>`;
       }
       if (word.feminine) {
-        deHtml += '<span class="form-badge fem-badge" title="Женский род">ж. р.: ' + formatGermanGender(word.feminine) + '</span>';
+        extraBadgesHtml += `<span class="form-badge fem-badge" title="Женский род">ж.р: ${escapeHtml(word.feminine)}</span>`;
       }
-      deHtml += '</div>';
-    }
-    deTd.innerHTML = deHtml;
-    ruTd.textContent = word.ru;
 
-    tr.appendChild(cbTd);
-    tr.appendChild(deTd);
-    tr.appendChild(ruTd);
+      let categoryCellHtml = "";
+      if (isGlobal) {
+        const catName = word.category?.name || categories.find((c) => c.id === word.categoryId)?.name || "—";
+        categoryCellHtml = `<td><span class="category-tag">${escapeHtml(catName)}</span></td>`;
+      }
 
-    if (globalMode) {
-      var catTd = document.createElement("td");
-      catTd.innerHTML = '<span class="category-tag">' + (word.categoryName || "") + '</span>';
-      tr.appendChild(catTd);
-    }
+      tr.innerHTML = `
+        <td style="text-align: center;">
+          <input type="checkbox" class="word-row-cb" data-id="${word.id}" ${isChecked ? "checked" : ""}>
+        </td>
+        <td>
+          <div style="font-weight: 600; font-size: 14px;">${formatGermanWord(word.de)}</div>
+          ${extraBadgesHtml ? `<div class="word-extra-forms">${extraBadgesHtml}</div>` : ""}
+        </td>
+        <td>
+          <div style="font-size: 14px; color: var(--text-primary);">${escapeHtml(word.ru)}</div>
+        </td>
+        ${categoryCellHtml}
+        <td style="text-align: right; white-space: nowrap;">
+          <button type="button" class="small-btn ghost-btn edit-word-btn" data-id="${word.id}" title="Редактировать">✏️ Изменить</button>
+          <button type="button" class="small-btn ghost-btn move-word-btn" data-id="${word.id}" title="Перенести в другую категорию">📁</button>
+          <button type="button" class="small-btn ghost-btn danger-hover delete-word-btn" data-id="${word.id}" title="Удалить слово" style="color: var(--danger);">🗑️</button>
+        </td>
+      `;
 
-    var actionsTd = document.createElement("td");
-    actionsTd.style.textAlign = "right";
-
-    var editBtn = document.createElement("button");
-    editBtn.className = "small-btn ghost-btn";
-    editBtn.textContent = "Изменить";
-    editBtn.style.marginRight = "4px";
-    editBtn.addEventListener("click", function () {
-      openEditWordModal(word);
-    });
-
-    var moveBtn = document.createElement("button");
-    moveBtn.className = "small-btn ghost-btn";
-    moveBtn.textContent = "Перенести";
-    moveBtn.style.marginRight = "4px";
-    moveBtn.addEventListener("click", function () {
-      openMoveModal([word.id], 'Перенос слова: «' + word.de + ' — ' + word.ru + '»');
-    });
-
-    var deleteBtn = document.createElement("button");
-    deleteBtn.className = "small-btn danger-btn";
-    deleteBtn.textContent = "Удалить";
-    deleteBtn.addEventListener("click", function () {
-      if (!confirm('Удалить слово "' + word.de + '"?')) return;
-      api("/api/words/" + word.id, { method: "DELETE" })
-        .then(function () {
+      // Checkbox event
+      const cb = tr.querySelector(".word-row-cb");
+      cb.addEventListener("change", (e) => {
+        if (e.target.checked) {
+          selectedWordIds.add(word.id);
+        } else {
           selectedWordIds.delete(word.id);
-          loadCategories();
-        })
-        .catch(function (e) { alert(e.message); });
+        }
+        updateBatchActionsBar();
+      });
+
+      // Edit button
+      tr.querySelector(".edit-word-btn").addEventListener("click", () => openWordModal(word));
+
+      // Move single button
+      tr.querySelector(".move-word-btn").addEventListener("click", () => openMoveModal([word.id]));
+
+      // Delete button
+      tr.querySelector(".delete-word-btn").addEventListener("click", async () => {
+        const confirmed = await showConfirmDialog(
+          "Удаление слова",
+          `Вы действительно хотите удалить слово «${word.de}» (${word.ru})?`
+        );
+        if (!confirmed) return;
+
+        try {
+          await ApiClient.delete(`/api/words/${word.id}`);
+          showToast(`Слово «${word.de}» удалено`, "success");
+          selectedWordIds.delete(word.id);
+          await loadInitialData();
+        } catch (err) {
+          showToast("Ошибка при удалении: " + err.message, "error");
+        }
+      });
+
+      wordsTbody.appendChild(tr);
     });
-
-    actionsTd.appendChild(editBtn);
-    actionsTd.appendChild(moveBtn);
-    actionsTd.appendChild(deleteBtn);
-
-    tr.appendChild(actionsTd);
-    return tr;
   }
 
-  function updateBatchBar() {
-    var count = selectedWordIds.size;
-    selectedCountEl.textContent = count;
+  // Select all checkbox
+  selectAllWordsCb.addEventListener("change", (e) => {
+    const isChecked = e.target.checked;
+    const cbs = wordsTbody.querySelectorAll(".word-row-cb");
+    cbs.forEach((cb) => {
+      cb.checked = isChecked;
+      const id = cb.dataset.id;
+      if (isChecked) selectedWordIds.add(id);
+      else selectedWordIds.delete(id);
+    });
+    updateBatchActionsBar();
+  });
+
+  function updateBatchActionsBar() {
+    const count = selectedWordIds.size;
     if (count > 0) {
       batchActionsBar.style.display = "flex";
+      selectedCountSpan.textContent = count;
     } else {
       batchActionsBar.style.display = "none";
     }
   }
 
-  function openMoveModal(wordIds, text) {
-    if (!wordIds || wordIds.length === 0) return;
-    wordsToMove = wordIds;
-    moveModalText.textContent = text;
-
-    moveTargetCategory.innerHTML = "";
-    categories.forEach(function (cat) {
-      var opt = document.createElement("option");
-      opt.value = cat.id;
-      opt.textContent = cat.name + " (" + cat.words.length + " слов)";
-      moveTargetCategory.appendChild(opt);
-    });
-
-    moveModal.classList.remove("hidden");
-  }
-
-  function closeMoveModal() {
-    moveModal.classList.add("hidden");
-    wordsToMove = [];
-  }
-
-  // ---- Event Handlers ----
-
-  categorySelect.addEventListener("change", function () {
-    selectedCategoryId = categorySelect.value;
-    filterInput.value = "";
-    if (globalSearchCb) globalSearchCb.checked = (selectedCategoryId === "__ALL__");
-    renderCategoryDetail();
-  });
-
-  if (globalSearchCb) {
-    globalSearchCb.addEventListener("change", function () {
-      if (globalSearchCb.checked) {
-        selectedCategoryId = "__ALL__";
-      } else {
-        selectedCategoryId = categories.length > 0 ? categories[0].id : null;
-      }
-      categorySelect.value = selectedCategoryId;
-      renderCategoryDetail();
-    });
-  }
-
-  filterInput.addEventListener("input", function () {
-    renderWordsTable();
-  });
-
-  selectAllCb.addEventListener("change", function () {
-    var visibleWords = getVisibleWords();
-    if (selectAllCb.checked) {
-      visibleWords.forEach(function (w) { selectedWordIds.add(w.id); });
-    } else {
-      visibleWords.forEach(function (w) { selectedWordIds.delete(w.id); });
-    }
-    renderWordsTable();
-    updateBatchBar();
-  });
-
-  // Batch actions
-  batchOpenMoveBtn.addEventListener("click", function () {
-    var ids = Array.from(selectedWordIds);
-    if (ids.length === 0) return;
-    openMoveModal(ids, 'Выбрано слов для переноса: ' + ids.length + ' шт.');
-  });
-
-  batchDeleteBtn.addEventListener("click", function () {
-    var ids = Array.from(selectedWordIds);
-    if (ids.length === 0) return;
-    if (!confirm('Вы действительно хотите удалить выбранные слова (' + ids.length + ' шт.)?')) return;
-
-    Promise.all(ids.map(function (id) {
-      return api("/api/words/" + id, { method: "DELETE" });
-    })).then(function () {
-      selectedWordIds.clear();
-      loadCategories();
-    }).catch(function (e) { alert("Ошибка при удалении: " + e.message); });
-  });
-
-  batchCancelBtn.addEventListener("click", function () {
+  batchCancelBtn.addEventListener("click", () => {
     selectedWordIds.clear();
-    renderWordsTable();
-    updateBatchBar();
+    wordsTbody.querySelectorAll(".word-row-cb").forEach((cb) => (cb.checked = false));
+    selectAllWordsCb.checked = false;
+    updateBatchActionsBar();
   });
 
-  // Move Modal handlers
-  cancelMoveBtn.addEventListener("click", closeMoveModal);
+  // Batch delete
+  batchDeleteBtn.addEventListener("click", async () => {
+    const count = selectedWordIds.size;
+    if (count === 0) return;
 
-  confirmMoveBtn.addEventListener("click", function () {
-    var targetCatId = moveTargetCategory.value;
-    if (!targetCatId) { alert("Выберите целевую категорию"); return; }
-    if (wordsToMove.length === 0) return;
+    const confirmed = await showConfirmDialog(
+      "Удаление выбранных слов",
+      `Вы действительно хотите удалить выбранные слова (${count} шт.)? Это действие нельзя отменить.`
+    );
+    if (!confirmed) return;
 
-    api("/api/words/move", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wordIds: wordsToMove, targetCategoryId: targetCatId })
-    }).then(function () {
-      closeMoveModal();
+    try {
+      const ids = Array.from(selectedWordIds);
+      await Promise.all(ids.map((id) => ApiClient.delete(`/api/words/${id}`)));
+      showToast(`Удалено ${count} слов`, "success");
       selectedWordIds.clear();
-      loadCategories();
-    }).catch(function (e) { alert("Ошибка переноса: " + e.message); });
+      await loadInitialData();
+    } catch (err) {
+      showToast("Ошибка при массовом удалении: " + err.message, "error");
+    }
   });
 
-  // Rename & Delete category
-  renameCatBtn.addEventListener("click", function () {
-    var cat = currentCategory();
-    if (!cat) return;
-    var newName = prompt("Новое название категории:", cat.name);
-    if (newName === null) return;
-    newName = newName.trim();
-    if (!newName) return;
-    api("/api/categories/" + cat.id, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName })
-    }).then(loadCategories).catch(function (e) { alert(e.message); });
+  // Batch move
+  batchOpenMoveBtn.addEventListener("click", () => {
+    if (selectedWordIds.size === 0) return;
+    openMoveModal(Array.from(selectedWordIds));
   });
 
-  deleteCatBtn.addEventListener("click", function () {
-    var cat = currentCategory();
-    if (!cat) return;
-    if (!confirm('Удалить категорию "' + cat.name + '" вместе со всеми словами?')) return;
-    api("/api/categories/" + cat.id, { method: "DELETE" })
-      .then(function () {
-        selectedCategoryId = null;
-        loadCategories();
-      })
-      .catch(function (e) { alert(e.message); });
+  function openMoveModal(wordIds) {
+    populateCategoryDropdowns();
+    moveModalText.textContent = `Перенос ${wordIds.length} ${wordIds.length === 1 ? "слова" : "слов"} в другой раздел.`;
+    moveModal.dataset.wordIds = JSON.stringify(wordIds);
+    moveModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+  }
+
+  cancelMoveBtn.addEventListener("click", () => {
+    moveModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
   });
 
-  // Live duplicate checking
-  var deInput = document.getElementById("new-word-de");
-  var ruInput = document.getElementById("new-word-ru");
-  var pluralInput = document.getElementById("new-word-plural");
-  var feminineInput = document.getElementById("new-word-feminine");
-  var dupBanner = document.getElementById("duplicate-warning-banner");
-  var dupTimer = null;
-
-  function openEditWordModal(word) {
-    if (!editWordModal) return;
-    currentEditingWordId = word.id;
-    if (editWordDe) editWordDe.value = word.de || "";
-    if (editWordRu) editWordRu.value = word.ru || "";
-    if (editWordPlural) editWordPlural.value = word.plural || "";
-    if (editWordFeminine) editWordFeminine.value = word.feminine || "";
-    editWordModal.classList.remove("hidden");
-    if (editWordDe) editWordDe.focus();
-  }
-
-  function closeEditWordModal() {
-    if (!editWordModal) return;
-    editWordModal.classList.add("hidden");
-    currentEditingWordId = null;
-  }
-
-  if (cancelEditBtn) {
-    cancelEditBtn.addEventListener("click", closeEditWordModal);
-  }
-
-  if (confirmEditBtn) {
-    confirmEditBtn.addEventListener("click", function () {
-      if (!currentEditingWordId) return;
-      var newDe = editWordDe.value.trim();
-      var newRu = editWordRu.value.trim();
-      var newPlural = editWordPlural ? editWordPlural.value.trim() : "";
-      var newFeminine = editWordFeminine ? editWordFeminine.value.trim() : "";
-
-      if (!newDe || !newRu) {
-        alert("Необходимо заполнить немецкое слово и перевод.");
-        return;
-      }
-
-      confirmEditBtn.disabled = true;
-      api("/api/words/" + currentEditingWordId, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          de: newDe,
-          ru: newRu,
-          plural: newPlural || null,
-          feminine: newFeminine || null
-        })
-      }).then(function () {
-        closeEditWordModal();
-        loadCategories();
-      }).catch(function (e) {
-        alert(e.message);
-      }).finally(function () {
-        confirmEditBtn.disabled = false;
-      });
-    });
-  }
-
-  function checkLiveDuplicates() {
-    if (!deInput || !ruInput || !dupBanner) return;
-    var de = deInput.value.trim();
-    var ru = ruInput.value.trim();
-    if (!de && !ru) {
-      dupBanner.style.display = "none";
+  confirmMoveBtn.addEventListener("click", async () => {
+    const targetCatId = moveTargetCategory.value;
+    if (!targetCatId) {
+      showToast("Выберите категорию назначения", "error");
       return;
     }
 
-    var normDe = de.toLowerCase();
-    var normRu = ru.toLowerCase();
-    var found = [];
+    const wordIds = JSON.parse(moveModal.dataset.wordIds || "[]");
+    if (wordIds.length === 0) return;
 
-    categories.forEach(function (cat) {
-      cat.words.forEach(function (w) {
-        var wDe = (w.de || "").trim().toLowerCase();
-        var wRu = (w.ru || "").trim().toLowerCase();
-        if ((normDe && wDe === normDe) || (normRu && wRu === normRu)) {
-          found.push({ de: w.de, ru: w.ru, categoryName: cat.name });
-        }
-      });
-    });
+    try {
+      await Promise.all(
+        wordIds.map((id) =>
+          ApiClient.put(`/api/words/${id}`, {
+            categoryId: targetCatId
+          })
+        )
+      );
+      showToast(`Перенесено ${wordIds.length} слов`, "success");
+      moveModal.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+      selectedWordIds.clear();
+      await loadInitialData();
+    } catch (err) {
+      showToast("Ошибка переноса: " + err.message, "error");
+    }
+  });
 
-    if (found.length > 0) {
-      var match = found[0];
-      dupBanner.style.display = "block";
-      dupBanner.innerHTML = "⚠️ <b>Найден дубликат:</b> «" + match.de + " — " + match.ru + "» уже есть в разделе <i>«" + match.categoryName + "»</i>!";
+  // Search filter listeners
+  wordFilterInput.addEventListener("input", () => {
+    clearSearchBtn.style.display = wordFilterInput.value ? "block" : "none";
+    renderWordsTable();
+  });
+
+  clearSearchBtn.addEventListener("click", () => {
+    wordFilterInput.value = "";
+    clearSearchBtn.style.display = "none";
+    renderWordsTable();
+    wordFilterInput.focus();
+  });
+
+  globalSearchCb.addEventListener("change", () => {
+    renderWordsTable();
+  });
+
+  // ==================== WORD ADD & EDIT MODAL ====================
+
+  function openWordModal(word = null) {
+    editingWord = word;
+    populateCategoryDropdowns();
+    wordModalDupBanner.style.display = "none";
+
+    if (word) {
+      wordModalTitle.textContent = "Редактирование слова";
+      wordModalCategory.value = word.categoryId || currentCategoryId;
+      wordModalDe.value = word.de || "";
+      wordModalRu.value = word.ru || "";
+      wordModalPlural.value = word.plural || "";
+      wordModalFeminine.value = word.feminine || "";
     } else {
-      dupBanner.style.display = "none";
+      wordModalTitle.textContent = "Добавление нового слова";
+      if (currentCategoryId !== "all") {
+        wordModalCategory.value = currentCategoryId;
+      }
+      wordModalDe.value = "";
+      wordModalRu.value = "";
+      wordModalPlural.value = "";
+      wordModalFeminine.value = "";
     }
+
+    wordModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    setTimeout(() => wordModalDe.focus(), 50);
   }
 
-  function scheduleDupCheck() {
-    clearTimeout(dupTimer);
-    dupTimer = setTimeout(checkLiveDuplicates, 300);
-  }
+  openAddWordBtn.addEventListener("click", () => openWordModal(null));
 
-  if (deInput) deInput.addEventListener("input", scheduleDupCheck);
-  if (ruInput) ruInput.addEventListener("input", scheduleDupCheck);
-
-  function createWordRequest(catId, de, ru, plural, feminine, force) {
-    var url = "/api/categories/" + catId + "/words" + (force ? "?force=true" : "");
-    return api(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        de: de,
-        ru: ru,
-        plural: plural || null,
-        feminine: feminine || null,
-        force: force
-      })
-    }).then(function () {
-      deInput.value = "";
-      ruInput.value = "";
-      if (pluralInput) pluralInput.value = "";
-      if (feminineInput) feminineInput.value = "";
-      if (dupBanner) dupBanner.style.display = "none";
-      loadCategories();
-    }).catch(function (e) {
-      if (e.message && e.message.indexOf("уже существует") !== -1) {
-        if (confirm(e.message + "\n\nВсё равно добавить это слово как дубликат?")) {
-          createWordRequest(catId, de, ru, plural, feminine, true);
-        }
-      } else {
-        alert(e.message);
-      }
-    });
-  }
-
-  // Add word
-  document.getElementById("add-word-btn").addEventListener("click", function () {
-    var cat = currentCategory();
-    if (!cat) { alert("Выберите конкретную категорию для добавления слова."); return; }
-    var de = deInput.value.trim();
-    var ru = ruInput.value.trim();
-    var plural = pluralInput ? pluralInput.value.trim() : null;
-    var feminine = feminineInput ? feminineInput.value.trim() : null;
-    if (!de || !ru) { alert("Заполни оба обязательных поля (немецкий и перевод)"); return; }
-    createWordRequest(cat.id, de, ru, plural, feminine, false);
+  wordModalCancelBtn.addEventListener("click", () => {
+    wordModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
   });
 
-  // New category
-  document.getElementById("add-category-btn").addEventListener("click", function () {
-    var input = document.getElementById("new-category-name");
-    var name = input.value.trim();
-    if (!name) { alert("Введи название категории"); return; }
-    api("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name })
-    }).then(function (newCat) {
-      input.value = "";
-      selectedCategoryId = newCat.id;
-      loadCategories();
-    }).catch(function (e) { alert(e.message); });
+  // Article helper buttons (der / die / das)
+  document.querySelectorAll(".article-helper-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const art = btn.dataset.article;
+      let val = wordModalDe.value.trim();
+      // Strip existing articles
+      val = val.replace(/^(der|die|das)\s+/i, "");
+      wordModalDe.value = art + val;
+      wordModalDe.focus();
+      checkDuplicate();
+    });
   });
 
-  var logoutBtn = document.getElementById("logout-btn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", function () {
-      fetch("/api/admin/logout", { method: "POST" }).then(function () {
-        window.location.href = "/admin-login.html";
-      });
-    });
-  }
-
-  // ===== EXPORT SYSTEM =====
-  var openExportBtn = document.getElementById("open-export-btn");
-  var exportModal = document.getElementById("export-modal");
-  var exportScopeSelect = document.getElementById("export-scope-select");
-  var cancelExportBtn = document.getElementById("cancel-export-btn");
-  var confirmExportBtn = document.getElementById("confirm-export-btn");
-
-  if (openExportBtn && exportModal) {
-    openExportBtn.addEventListener("click", function () {
-      if (!exportScopeSelect) return;
-      exportScopeSelect.innerHTML = '<option value="__ALL__">Все категории (Весь словарь)</option>';
-      categories.forEach(function (cat) {
-        var opt = document.createElement("option");
-        opt.value = cat.id;
-        opt.textContent = cat.name + " (" + cat.words.length + " слов)";
-        if (cat.id === selectedCategoryId) opt.selected = true;
-        exportScopeSelect.appendChild(opt);
-      });
-      exportModal.classList.remove("hidden");
-    });
-  }
-
-  if (cancelExportBtn && exportModal) {
-    cancelExportBtn.addEventListener("click", function () {
-      exportModal.classList.add("hidden");
-    });
-  }
-
-  if (confirmExportBtn) {
-    confirmExportBtn.addEventListener("click", function () {
-      var formatRadio = document.querySelector('input[name="export-format"]:checked');
-      var format = formatRadio ? formatRadio.value : "csv";
-      var scopeId = exportScopeSelect.value;
-
-      var exportWords = [];
-      categories.forEach(function (cat) {
-        if (scopeId !== "__ALL__" && cat.id !== scopeId) return;
-        cat.words.forEach(function (w) {
-          exportWords.push({
-            de: w.de,
-            ru: w.ru,
-            plural: w.plural || null,
-            feminine: w.feminine || null,
-            category: cat.name
-          });
-        });
-      });
-
-      if (exportWords.length === 0) {
-        alert("Нет слов для экспорта");
-        return;
-      }
-
-      var content = "";
-      var mimeType = "text/plain;charset=utf-8";
-      var fileExt = "txt";
-
-      if (format === "json") {
-        content = JSON.stringify(exportWords, null, 2);
-        mimeType = "application/json;charset=utf-8";
-        fileExt = "json";
-      } else if (format === "anki") {
-        // Anki TSV format: German (with forms) [tab] Russian [tab] Plural [tab] Feminine [tab] Category
-        content = exportWords.map(function (w) {
-          var deWithForms = w.de;
-          var extras = [];
-          if (w.plural) extras.push("мн: " + w.plural);
-          if (w.feminine) extras.push("ж: " + w.feminine);
-          if (extras.length) deWithForms += " (" + extras.join(", ") + ")";
-          return deWithForms + "\t" + w.ru + "\t" + (w.plural || "") + "\t" + (w.feminine || "") + "\t" + w.category;
-        }).join("\n");
-        mimeType = "text/plain;charset=utf-8";
-        fileExt = "txt";
-      } else {
-        // CSV with semicolon (Excel compatible with BOM)
-        var lines = ["\uFEFFНемецкий;Перевод;Множественное число;Женский род;Категория"];
-        exportWords.forEach(function (w) {
-          var cleanDe = '"' + (w.de || "").replace(/"/g, '""') + '"';
-          var cleanRu = '"' + (w.ru || "").replace(/"/g, '""') + '"';
-          var cleanPlural = '"' + (w.plural || "").replace(/"/g, '""') + '"';
-          var cleanFem = '"' + (w.feminine || "").replace(/"/g, '""') + '"';
-          var cleanCat = '"' + (w.category || "").replace(/"/g, '""') + '"';
-          lines.push(cleanDe + ";" + cleanRu + ";" + cleanPlural + ";" + cleanFem + ";" + cleanCat);
-        });
-        content = lines.join("\n");
-        mimeType = "text/csv;charset=utf-8";
-        fileExt = "csv";
-      }
-
-      var blob = new Blob([content], { type: mimeType });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "german_words_export_" + new Date().toISOString().slice(0, 10) + "." + fileExt;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      exportModal.classList.add("hidden");
-    });
-  }
-
-  // ===== IMPORT SYSTEM =====
-  var openImportBtn = document.getElementById("open-import-btn");
-  var importModal = document.getElementById("import-modal");
-  var importFileInput = document.getElementById("import-file-input");
-  var importTextInput = document.getElementById("import-text-input");
-  var importTargetCat = document.getElementById("import-target-cat");
-  var importSkipDupCb = document.getElementById("import-skip-dup-cb");
-  var importPreviewBox = document.getElementById("import-preview-box");
-  var importPreviewCount = document.getElementById("import-preview-count");
-  var importPreviewTbody = document.getElementById("import-preview-tbody");
-  var parseImportBtn = document.getElementById("parse-import-btn");
-  var cancelImportBtn = document.getElementById("cancel-import-btn");
-  var confirmImportBtn = document.getElementById("confirm-import-btn");
-
-  var parsedImportItems = [];
-
-  if (openImportBtn && importModal) {
-    openImportBtn.addEventListener("click", function () {
-      if (!importTargetCat) return;
-      importTargetCat.innerHTML = '<option value="">Из файла (создавать из колонок)</option>';
-      categories.forEach(function (cat) {
-        var opt = document.createElement("option");
-        opt.value = cat.id;
-        opt.textContent = cat.name;
-        if (cat.id === selectedCategoryId && selectedCategoryId !== "__ALL__") opt.selected = true;
-        importTargetCat.appendChild(opt);
-      });
-
-      importFileInput.value = "";
-      importTextInput.value = "";
-      importPreviewBox.style.display = "none";
-      confirmImportBtn.disabled = true;
-      parsedImportItems = [];
-      importModal.classList.remove("hidden");
-    });
-  }
-
-  if (cancelImportBtn && importModal) {
-    cancelImportBtn.addEventListener("click", function () {
-      importModal.classList.add("hidden");
-    });
-  }
-
-  if (importFileInput) {
-    importFileInput.addEventListener("change", function (e) {
-      var file = e.target.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function (evt) {
-        importTextInput.value = evt.target.result;
-        parseImportData();
-      };
-      reader.readAsText(file);
-    });
-  }
-
-  function parseImportData() {
-    var text = importTextInput.value.trim();
-    parsedImportItems = [];
-
-    if (!text) {
-      importPreviewBox.style.display = "none";
-      confirmImportBtn.disabled = true;
+  function checkDuplicate() {
+    const val = wordModalDe.value.trim().toLowerCase();
+    if (!val) {
+      wordModalDupBanner.style.display = "none";
       return;
     }
 
-    // Try parsing as JSON first
+    const dup = allWordsCache.find((w) => {
+      if (editingWord && w.id === editingWord.id) return false;
+      return (w.de || "").toLowerCase().trim() === val;
+    });
+
+    if (dup) {
+      const catName = dup.category?.name || "другой категории";
+      wordModalDupBanner.textContent = `⚠️ Слово «${dup.de}» уже есть в категории «${catName}» (перевод: ${dup.ru}).`;
+      wordModalDupBanner.style.display = "block";
+    } else {
+      wordModalDupBanner.style.display = "none";
+    }
+  }
+
+  wordModalDe.addEventListener("input", checkDuplicate);
+
+  wordModalSaveBtn.addEventListener("click", async () => {
+    const categoryId = wordModalCategory.value;
+    const de = wordModalDe.value.trim();
+    const ru = wordModalRu.value.trim();
+    const plural = wordModalPlural.value.trim() || null;
+    const feminine = wordModalFeminine.value.trim() || null;
+
+    if (!categoryId) {
+      showToast("Выберите категорию для слова", "error");
+      return;
+    }
+    if (!de || !ru) {
+      showToast("Заполните немецкое слово и перевод", "error");
+      if (!de) wordModalDe.focus();
+      else wordModalRu.focus();
+      return;
+    }
+
+    try {
+      if (editingWord) {
+        await ApiClient.put(`/api/words/${editingWord.id}`, {
+          categoryId,
+          de,
+          ru,
+          plural,
+          feminine
+        });
+        showToast(`Слово «${de}» успешно обновлено!`, "success");
+      } else {
+        await ApiClient.createWord ? ApiClient.createWord({ categoryId, de, ru, plural, feminine }) : ApiClient.post("/api/words", { categoryId, de, ru, plural, feminine });
+        showToast(`Слово «${de}» добавлено!`, "success");
+      }
+
+      wordModal.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+      await loadInitialData();
+    } catch (err) {
+      showToast("Ошибка сохранения: " + err.message, "error");
+    }
+  });
+
+  // Enter to save inside word modal
+  [wordModalDe, wordModalRu, wordModalPlural, wordModalFeminine].forEach((input) => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        wordModalSaveBtn.click();
+      }
+    });
+  });
+
+  // ==================== CATEGORY ACTIONS ====================
+
+  openAddCategoryBtn.addEventListener("click", async () => {
+    const name = await showCategoryModal("Новая категория", "Введите название нового раздела:", "", "Например: Мебель и дом");
+    if (!name) return;
+
+    try {
+      const created = await ApiClient.post("/api/categories", { name });
+      showToast(`Категория «${name}» создана!`, "success");
+      currentCategoryId = created.id;
+      await loadInitialData();
+    } catch (err) {
+      showToast("Ошибка создания категории: " + err.message, "error");
+    }
+  });
+
+  renameCategoryBtn.addEventListener("click", async () => {
+    if (currentCategoryId === "all") return;
+    const cat = categories.find((c) => c.id === currentCategoryId);
+    if (!cat) return;
+
+    const newName = await showCategoryModal("Переименование категории", "Новое название категории:", cat.name);
+    if (!newName || newName === cat.name) return;
+
+    try {
+      await ApiClient.put(`/api/categories/${cat.id}`, { name: newName });
+      showToast(`Категория переименована в «${newName}»!`, "success");
+      await loadInitialData();
+    } catch (err) {
+      showToast("Ошибка переименования: " + err.message, "error");
+    }
+  });
+
+  deleteCategoryBtn.addEventListener("click", async () => {
+    if (currentCategoryId === "all") return;
+    const cat = categories.find((c) => c.id === currentCategoryId);
+    if (!cat) return;
+
+    const confirmed = await showConfirmDialog(
+      "Удаление категории",
+      `Вы действительно хотите удалить категорию «${cat.name}» со всеми словами в ней? Это действие необратимо!`
+    );
+    if (!confirmed) return;
+
+    try {
+      await ApiClient.delete(`/api/categories/${cat.id}`);
+      showToast(`Категория «${cat.name}» удалена`, "success");
+      currentCategoryId = "all";
+      await loadInitialData();
+    } catch (err) {
+      showToast("Ошибка удаления: " + err.message, "error");
+    }
+  });
+
+  // ==================== ANALYTICS CONTROLLER ====================
+
+  async function loadAnalyticsData() {
+    try {
+      const [stats, logsData] = await Promise.all([
+        ApiClient.get("/api/analytics/stats"),
+        ApiClient.get(`/api/analytics/logs?page=${currentLogsPage}&limit=50&search=${encodeURIComponent(document.getElementById("log-search-input")?.value || "")}`)
+      ]);
+
+      analyticsStats = stats;
+      analyticsLogs = logsData.logs || [];
+      currentLogsPage = logsData.page || 1;
+      totalLogsPages = logsData.totalPages || 1;
+
+      renderAnalyticsOverview(stats);
+      renderAnalyticsLogs(logsData);
+    } catch (err) {
+      showToast("Не удалось загрузить аналитику: " + err.message, "error");
+    }
+  }
+
+  function renderAnalyticsOverview(stats) {
+    if (!stats) return;
+
+    // Top Cards
+    document.getElementById("stat-unique-today").textContent = stats.todayUniqueVisitors || 0;
+    document.getElementById("stat-unique-total").textContent = stats.uniqueVisitors || 0;
+
+    document.getElementById("stat-views-today").textContent = stats.todayVisits || 0;
+    document.getElementById("stat-views-total").textContent = stats.totalVisits || 0;
+
+    document.getElementById("stat-active-now").textContent = stats.activeNow || 0;
+
+    document.getElementById("stat-total-words").textContent = stats.totalWords || 0;
+    document.getElementById("stat-total-categories").textContent = stats.totalCategories || 0;
+
+    // 7-day Daily Chart
+    renderDailyChart(stats.dailyVisits || []);
+
+    // Devices & Browsers
+    renderBreakdowns(stats);
+  }
+
+  function renderDailyChart(dailyVisits) {
+    const chartContainer = document.getElementById("daily-visits-chart");
+    if (!chartContainer) return;
+    chartContainer.innerHTML = "";
+
+    if (!dailyVisits || dailyVisits.length === 0) {
+      chartContainer.innerHTML = `<div style="margin: auto; font-size: 12px; color: var(--text-muted);">Нет данных за 7 дней</div>`;
+      return;
+    }
+
+    const maxVal = Math.max(...dailyVisits.map((d) => d.visits), 1);
+
+    dailyVisits.forEach((item) => {
+      const heightPercent = Math.max(Math.round((item.visits / maxVal) * 100), 6);
+      const dayLabel = formatShortDate(item.date);
+
+      const group = document.createElement("div");
+      group.className = "chart-bar-group";
+      group.innerHTML = `
+        <div class="chart-bar" style="height: ${heightPercent}%;">
+          <div class="chart-bar-tooltip">
+            ${item.visits} виз. (${item.unique} уник.)
+          </div>
+        </div>
+        <div class="chart-bar-label">${dayLabel}</div>
+      `;
+      chartContainer.appendChild(group);
+    });
+  }
+
+  function renderBreakdowns(stats) {
+    // Devices
+    const deviceList = document.getElementById("device-breakdown-list");
+    if (deviceList) {
+      deviceList.innerHTML = "";
+      const devStats = stats.deviceStats || {};
+      const total = Object.values(devStats).reduce((a, b) => a + b, 0) || 1;
+
+      const deviceTypes = [
+        { key: "Desktop", label: "💻 Компьютеры (Desktop)", icon: "💻" },
+        { key: "Mobile", label: "📱 Смартфоны (Mobile)", icon: "📱" },
+        { key: "Tablet", label: "📟 Планшеты (Tablet)", icon: "📟" }
+      ];
+
+      deviceTypes.forEach((d) => {
+        const count = devStats[d.key] || 0;
+        const pct = Math.round((count / total) * 100);
+
+        const row = document.createElement("div");
+        row.className = "breakdown-row";
+        row.innerHTML = `
+          <div class="breakdown-info">
+            <span>${d.label}</span>
+            <span><b>${count}</b> (${pct}%)</span>
+          </div>
+          <div class="breakdown-bar-wrap">
+            <div class="breakdown-bar-fill" style="width: ${pct}%;"></div>
+          </div>
+        `;
+        deviceList.appendChild(row);
+      });
+    }
+
+    // Browsers & OS
+    const browserList = document.getElementById("browser-breakdown-list");
+    if (browserList) {
+      browserList.innerHTML = "";
+      const bStats = stats.browserStats || {};
+      const total = Object.values(bStats).reduce((a, b) => a + b, 0) || 1;
+
+      Object.entries(bStats)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .forEach(([browser, count]) => {
+          const pct = Math.round((count / total) * 100);
+          const row = document.createElement("div");
+          row.className = "breakdown-row";
+          row.innerHTML = `
+            <div class="breakdown-info">
+              <span>🌐 ${escapeHtml(browser)}</span>
+              <span><b>${count}</b> (${pct}%)</span>
+            </div>
+            <div class="breakdown-bar-wrap">
+              <div class="breakdown-bar-fill" style="width: ${pct}%; background: #0e7490;"></div>
+            </div>
+          `;
+          browserList.appendChild(row);
+        });
+    }
+  }
+
+  function renderAnalyticsLogs(logsData) {
+    const logsTbody = document.getElementById("logs-tbody");
+    const totalBadge = document.getElementById("logs-total-badge");
+    const pageIndicator = document.getElementById("logs-page-indicator");
+    const prevBtn = document.getElementById("logs-prev-page-btn");
+    const nextBtn = document.getElementById("logs-next-page-btn");
+
+    if (!logsTbody) return;
+    logsTbody.innerHTML = "";
+
+    totalBadge.textContent = `${logsData.total || 0} записей`;
+    pageIndicator.textContent = `Страница ${logsData.page || 1} из ${logsData.totalPages || 1}`;
+
+    prevBtn.disabled = logsData.page <= 1;
+    nextBtn.disabled = logsData.page >= logsData.totalPages;
+
+    const logs = logsData.logs || [];
+    if (logs.length === 0) {
+      logsTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-muted);">Журнал пуст</td></tr>`;
+      return;
+    }
+
+    logs.forEach((log) => {
+      const tr = document.createElement("tr");
+      const relativeTime = getRelativeTimeString(new Date(log.createdAt));
+      const exactTime = formatExactTime(new Date(log.createdAt));
+
+      tr.innerHTML = `
+        <td>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="ip-badge">${escapeHtml(log.ip)}</span>
+            <button type="button" class="copy-ip-btn" data-ip="${escapeHtml(log.ip)}" title="Скопировать IP" style="background: none; border: none; cursor: pointer; font-size: 11px; padding: 2px;">📋</button>
+          </div>
+        </td>
+        <td>
+          <div style="font-size: 12px; font-weight: 600;">${relativeTime}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">${exactTime}</div>
+        </td>
+        <td>
+          <span class="device-badge">${escapeHtml(log.device || "Desktop")}</span>
+          <span style="font-size: 12px; margin-left: 4px; color: var(--text-secondary);">${escapeHtml(log.os || "—")}</span>
+        </td>
+        <td>
+          <span style="font-size: 12px; font-weight: 500;">${escapeHtml(log.browser || "—")}</span>
+        </td>
+        <td>
+          <span style="font-family: monospace; font-size: 12px; font-weight: 600; color: var(--accent);">${escapeHtml(log.page)}</span>
+          ${log.action && log.action !== "page_view" ? `<span class="category-tag" style="margin-left: 4px; font-size: 10px;">${escapeHtml(log.action)}</span>` : ""}
+        </td>
+        <td>
+          <div class="log-ua-toggle" data-id="${log.id}">Показать UA</div>
+          <div class="log-ua-text" id="ua-${log.id}" style="display: none;">${escapeHtml(log.userAgent || "—")}</div>
+        </td>
+      `;
+
+      // Copy IP
+      tr.querySelector(".copy-ip-btn")?.addEventListener("click", () => {
+        navigator.clipboard.writeText(log.ip).then(() => {
+          showToast(`IP ${log.ip} скопирован!`, "info", 1500);
+        });
+      });
+
+      // Toggle UA
+      tr.querySelector(".log-ua-toggle")?.addEventListener("click", (e) => {
+        const uaBox = document.getElementById(`ua-${log.id}`);
+        if (uaBox) {
+          const isHidden = uaBox.style.display === "none";
+          uaBox.style.display = isHidden ? "block" : "none";
+          e.target.textContent = isHidden ? "Скрыть UA" : "Показать UA";
+        }
+      });
+
+      logsTbody.appendChild(tr);
+    });
+  }
+
+  // Analytics Logs Search & Pagination
+  const logSearchInput = document.getElementById("log-search-input");
+  let searchDebounce = null;
+  if (logSearchInput) {
+    logSearchInput.addEventListener("input", () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        currentLogsPage = 1;
+        loadAnalyticsData();
+      }, 300);
+    });
+  }
+
+  document.getElementById("refresh-logs-btn")?.addEventListener("click", () => {
+    loadAnalyticsData();
+    showToast("Данные аналитики обновлены", "info", 1500);
+  });
+
+  document.getElementById("logs-prev-page-btn")?.addEventListener("click", () => {
+    if (currentLogsPage > 1) {
+      currentLogsPage--;
+      loadAnalyticsData();
+    }
+  });
+
+  document.getElementById("logs-next-page-btn")?.addEventListener("click", () => {
+    if (currentLogsPage < totalLogsPages) {
+      currentLogsPage++;
+      loadAnalyticsData();
+    }
+  });
+
+  document.getElementById("clear-logs-btn")?.addEventListener("click", async () => {
+    const confirmed = await showConfirmDialog(
+      "Очистка журнала посещений",
+      "Вы действительно хотите удалить все записи в журнале посещений? Статистика посещений будет сброшена."
+    );
+    if (!confirmed) return;
+
+    try {
+      await ApiClient.delete("/api/analytics/logs");
+      showToast("Журнал посещений очищен", "success");
+      currentLogsPage = 1;
+      await loadAnalyticsData();
+    } catch (err) {
+      showToast("Ошибка при очистке журнала: " + err.message, "error");
+    }
+  });
+
+  function startAnalyticsAutoPoll() {
+    stopAnalyticsAutoPoll();
+    analyticsPollInterval = setInterval(() => {
+      loadAnalyticsData();
+    }, 15000);
+  }
+
+  function stopAnalyticsAutoPoll() {
+    if (analyticsPollInterval) {
+      clearInterval(analyticsPollInterval);
+      analyticsPollInterval = null;
+    }
+  }
+
+  // ==================== IMPORT & EXPORT CONTROLLER ====================
+
+  const confirmExportBtn = document.getElementById("confirm-export-btn");
+  if (confirmExportBtn) {
+    confirmExportBtn.addEventListener("click", async () => {
+      const format = document.querySelector('input[name="export-format"]:checked')?.value || "csv";
+      const scope = document.getElementById("export-scope-select")?.value || "all";
+
+      let wordsToExport = [];
+      let filename = "deutsch-words";
+
+      if (scope === "all") {
+        wordsToExport = allWordsCache.length > 0 ? allWordsCache : await ApiClient.get("/api/words");
+        filename += "-all";
+      } else {
+        const cat = await ApiClient.get(`/api/categories/${scope}`);
+        wordsToExport = (cat.words || []).map((w) => ({ ...w, category: cat }));
+        filename += `-${cat.name.replace(/[^a-zA-Zа-яА-Я0-9]/g, "_")}`;
+      }
+
+      if (wordsToExport.length === 0) {
+        showToast("Нет слов для экспорта в выбранной категории", "error");
+        return;
+      }
+
+      let content = "";
+      let mimeType = "text/plain;charset=utf-8";
+
+      if (format === "csv") {
+        content = "Немецкий;Перевод;Множественное число;Женский род;Категория\n";
+        wordsToExport.forEach((w) => {
+          const catName = w.category?.name || "";
+          content += `"${(w.de || "").replace(/"/g, '""')}";"${(w.ru || "").replace(/"/g, '""')}";"${(w.plural || "").replace(/"/g, '""')}";"${(w.feminine || "").replace(/"/g, '""')}";"${catName.replace(/"/g, '""')}"\n`;
+        });
+        filename += ".csv";
+        mimeType = "text/csv;charset=utf-8";
+      } else if (format === "json") {
+        content = JSON.stringify(wordsToExport, null, 2);
+        filename += ".json";
+        mimeType = "application/json;charset=utf-8";
+      } else if (format === "anki") {
+        wordsToExport.forEach((w) => {
+          const front = escapeHtml(w.de) + (w.plural ? `<br><small>мн.ч: ${escapeHtml(w.plural)}</small>` : "");
+          const back = escapeHtml(w.ru) + (w.feminine ? `<br><small>ж.р: ${escapeHtml(w.feminine)}</small>` : "");
+          const cat = w.category?.name || "Deutsch";
+          content += `${front}\t${back}\t${cat}\n`;
+        });
+        filename += "-anki.tsv";
+        mimeType = "text/tab-separated-values;charset=utf-8";
+      }
+
+      downloadBlob(content, filename, mimeType);
+      showToast(`Экспортировано ${wordsToExport.length} слов!`, "success");
+    });
+  }
+
+  // Import Parsing
+  let parsedImportWords = [];
+  const importFileInput = document.getElementById("import-file-input");
+  const importTextInput = document.getElementById("import-text-input");
+  const parseImportBtn = document.getElementById("parse-import-btn");
+  const confirmImportBtn = document.getElementById("confirm-import-btn");
+  const importPreviewBox = document.getElementById("import-preview-box");
+  const importPreviewCount = document.getElementById("import-preview-count");
+  const importPreviewTbody = document.getElementById("import-preview-tbody");
+
+  importFileInput?.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      importTextInput.value = ev.target.result;
+      parseImportContent();
+    };
+    reader.readAsText(file);
+  });
+
+  parseImportBtn?.addEventListener("click", () => parseImportContent());
+
+  function parseImportContent() {
+    const text = (importTextInput.value || "").trim();
+    if (!text) {
+      showToast("Вставьте текст или выберите файл для импорта", "error");
+      return;
+    }
+
+    parsedImportWords = [];
+
+    // Check if JSON
     if (text.startsWith("[") || text.startsWith("{")) {
       try {
-        var json = JSON.parse(text);
-        var arr = Array.isArray(json) ? json : (json.words || json.items || []);
-        arr.forEach(function (item) {
-          var de = item.de || item.german || item.word || "";
-          var ru = item.ru || item.russian || item.translation || "";
-          var plural = item.plural || item.pl || null;
-          var feminine = item.feminine || item.fem || null;
-          var cat = item.category || item.categoryName || "";
-          if (de && ru) {
-            parsedImportItems.push({
-              de: String(de).trim(),
-              ru: String(ru).trim(),
-              plural: plural ? String(plural).trim() : null,
-              feminine: feminine ? String(feminine).trim() : null,
-              categoryName: String(cat).trim()
+        const parsed = JSON.parse(text);
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        list.forEach((item) => {
+          if (item.de && item.ru) {
+            parsedImportWords.push({
+              de: item.de.trim(),
+              ru: item.ru.trim(),
+              plural: item.plural?.trim() || null,
+              feminine: item.feminine?.trim() || null,
+              categoryName: item.category?.name || item.categoryName || null
             });
           }
         });
-      } catch (err) {}
-    }
-
-    // If not JSON, parse line by line (CSV / TSV / Anki)
-    if (parsedImportItems.length === 0) {
-      var lines = text.split(/\r?\n/);
-      lines.forEach(function (line) {
-        line = line.trim();
-        if (!line || line.startsWith("#") || line.toLowerCase().startsWith("немецкий;")) return; // skip headers/comments
-
-        var parts = [];
-        if (line.indexOf("\t") !== -1) {
-          parts = line.split("\t");
-        } else if (line.indexOf(";") !== -1) {
-          parts = line.split(";");
-        } else if (line.indexOf(",") !== -1) {
-          parts = line.split(",");
-        }
-
-        if (parts.length >= 2) {
-          var cleanParts = parts.map(function (p) { return p.replace(/^["']|["']$/g, "").trim(); });
-          var de = cleanParts[0];
-          var ru = cleanParts[1];
-          var plural = null;
-          var feminine = null;
-          var cat = "";
-
-          if (cleanParts.length >= 5) {
-            plural = cleanParts[2] || null;
-            feminine = cleanParts[3] || null;
-            cat = cleanParts[4] || "";
-          } else if (cleanParts.length === 4) {
-            plural = cleanParts[2] || null;
-            feminine = cleanParts[3] || null;
-          } else if (cleanParts.length === 3) {
-            cat = cleanParts[2] || "";
-          }
-
-          if (de && ru) {
-            parsedImportItems.push({
-              de: de,
-              ru: ru,
-              plural: plural,
-              feminine: feminine,
-              categoryName: cat
-            });
-          }
-        }
-      });
-    }
-
-    // Update preview
-    if (parsedImportItems.length > 0) {
-      importPreviewBox.style.display = "block";
-      importPreviewCount.textContent = parsedImportItems.length + " слов";
-      confirmImportBtn.disabled = false;
-
-      var previewRows = parsedImportItems.slice(0, 25);
-      var html = "";
-      previewRows.forEach(function (item) {
-        var deDisplay = item.de;
-        if (item.plural || item.feminine) {
-          var extras = [];
-          if (item.plural) extras.push("мн: " + item.plural);
-          if (item.feminine) extras.push("ж: " + item.feminine);
-          deDisplay += ' <span style="font-size:11px; color:var(--accent);">(' + extras.join(", ") + ')</span>';
-        }
-        html += '<tr style="border-bottom: 1px solid var(--border);">';
-        html += '  <td style="padding: 4px 8px; font-weight: 500;">' + deDisplay + '</td>';
-        html += '  <td style="padding: 4px 8px;">' + item.ru + '</td>';
-        html += '  <td style="padding: 4px 8px; color: var(--text-secondary);">' + (item.categoryName || "(из настроек)") + '</td>';
-        html += '</tr>';
-      });
-      if (parsedImportItems.length > 25) {
-        html += '<tr><td colspan="3" style="padding: 6px 8px; text-align: center; color: var(--text-secondary);">… и ещё ' + (parsedImportItems.length - 25) + ' слов</td></tr>';
+      } catch (err) {
+        showToast("Ошибка парсинга JSON: " + err.message, "error");
+        return;
       }
-      importPreviewTbody.innerHTML = html;
     } else {
-      importPreviewBox.style.display = "block";
-      importPreviewCount.textContent = "0 слов";
-      importPreviewTbody.innerHTML = '<tr><td colspan="3" style="padding: 12px; text-align: center; color: var(--danger);">Не удалось распознать слова. Проверьте формат.</td></tr>';
-      confirmImportBtn.disabled = true;
-    }
-  }
+      // CSV / TSV / Semicolon lines
+      const lines = text.split(/\r?\n/);
+      lines.forEach((line) => {
+        const l = line.trim();
+        if (!l || l.startsWith("#") || l.startsWith("Немецкий;")) return;
 
-  if (parseImportBtn) parseImportBtn.addEventListener("click", parseImportData);
-  if (importTextInput) importTextInput.addEventListener("input", function () { confirmImportBtn.disabled = true; });
+        // Split by delimiter (tab, semicolon, or comma)
+        let delimiter = ";";
+        if (l.includes("\t")) delimiter = "\t";
+        else if (l.includes(";") && !l.includes("\t")) delimiter = ";";
+        else if (l.includes(",") && !l.includes(";")) delimiter = ",";
 
-  if (confirmImportBtn) {
-    confirmImportBtn.addEventListener("click", function () {
-      if (parsedImportItems.length === 0) return;
-
-      var defaultCatId = importTargetCat.value || null;
-      var skipDuplicates = importSkipDupCb ? importSkipDupCb.checked : true;
-
-      confirmImportBtn.disabled = true;
-      confirmImportBtn.textContent = "Загрузка…";
-
-      api("/api/words/bulk-import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: parsedImportItems,
-          defaultCategoryId: defaultCatId,
-          skipDuplicates: skipDuplicates
-        })
-      }).then(function (res) {
-        alert("Импорт завершён!\n\n" +
-              "• Успешно импортировано: " + res.importedCount + " слов\n" +
-              "• Пропущено дубликатов: " + res.skippedCount + "\n" +
-              "• Создано новых категорий: " + res.categoriesCreated);
-        importModal.classList.add("hidden");
-        loadCategories();
-      }).catch(function (e) {
-        alert("Ошибка импорта: " + e.message);
-      }).finally(function () {
-        confirmImportBtn.disabled = false;
-        confirmImportBtn.textContent = "Импортировать";
+        const parts = l.split(delimiter).map((p) => p.replace(/^["']|["']$/g, "").trim());
+        if (parts.length >= 2 && parts[0] && parts[1]) {
+          parsedImportWords.push({
+            de: parts[0],
+            ru: parts[1],
+            plural: parts[2] || null,
+            feminine: parts[3] || null,
+            categoryName: parts[4] || null
+          });
+        }
       });
+    }
+
+    if (parsedImportWords.length === 0) {
+      showToast("Не удалось извлечь слова. Проверьте формат строк.", "error");
+      confirmImportBtn.disabled = true;
+      importPreviewBox.style.display = "none";
+      return;
+    }
+
+    importPreviewCount.textContent = `${parsedImportWords.length} слов`;
+    importPreviewTbody.innerHTML = "";
+    parsedImportWords.slice(0, 5).forEach((w) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="padding: 4px 6px; font-weight: 600;">${escapeHtml(w.de)}</td>
+        <td style="padding: 4px 6px;">${escapeHtml(w.ru)}</td>
+        <td style="padding: 4px 6px; color: var(--text-muted);">${w.plural ? `мн: ${escapeHtml(w.plural)}` : ""}</td>
+      `;
+      importPreviewTbody.appendChild(tr);
     });
+
+    importPreviewBox.style.display = "block";
+    confirmImportBtn.disabled = false;
+    showToast(`Распознано ${parsedImportWords.length} слов. Готово к импорту!`, "success");
   }
 
-  loadCategories();
+  confirmImportBtn?.addEventListener("click", async () => {
+    if (parsedImportWords.length === 0) return;
+
+    const targetCatId = document.getElementById("import-target-cat")?.value;
+    const skipDup = document.getElementById("import-skip-dup-cb")?.checked;
+
+    if (!targetCatId) {
+      showToast("Выберите категорию назначения", "error");
+      return;
+    }
+
+    confirmImportBtn.disabled = true;
+    confirmImportBtn.textContent = "Импорт…";
+
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    try {
+      for (const w of parsedImportWords) {
+        if (skipDup) {
+          const isDup = allWordsCache.some((cw) => (cw.de || "").toLowerCase().trim() === w.de.toLowerCase().trim());
+          if (isDup) {
+            skippedCount++;
+            continue;
+          }
+        }
+
+        await ApiClient.post("/api/words", {
+          categoryId: targetCatId,
+          de: w.de,
+          ru: w.ru,
+          plural: w.plural,
+          feminine: w.feminine
+        });
+        addedCount++;
+      }
+
+      showToast(`Импорт завершён! Добавлено: ${addedCount}, пропущено дубликатов: ${skippedCount}`, "success", 4500);
+      importTextInput.value = "";
+      importFileInput.value = "";
+      importPreviewBox.style.display = "none";
+      parsedImportWords = [];
+      confirmImportBtn.textContent = "Импортировать";
+      await loadInitialData();
+    } catch (err) {
+      showToast("Ошибка импорта: " + err.message, "error");
+      confirmImportBtn.disabled = false;
+      confirmImportBtn.textContent = "Импортировать";
+    }
+  });
+
+  // ==================== LOGOUT & REFRESH ====================
+
+  document.getElementById("logout-btn")?.addEventListener("click", async () => {
+    try {
+      await ApiClient.post("/api/admin/logout");
+      window.location.href = "/admin-login.html";
+    } catch (err) {
+      window.location.href = "/admin-login.html";
+    }
+  });
+
+  document.getElementById("admin-refresh-all-btn")?.addEventListener("click", async () => {
+    await loadInitialData();
+    if (document.getElementById("tab-analytics").classList.contains("active")) {
+      await loadAnalyticsData();
+    }
+    showToast("Данные успешно обновлены!", "info", 1500);
+  });
+
+  // ==================== UTILITY FUNCTIONS ====================
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function downloadBlob(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+
+  function formatShortDate(dateStr) {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}.${parts[1]}`;
+    }
+    return dateStr;
+  }
+
+  function formatExactTime(d) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  function getRelativeTimeString(date) {
+    const now = new Date();
+    const diffSec = Math.floor((now - date) / 1000);
+    if (diffSec < 10) return "только что";
+    if (diffSec < 60) return `${diffSec} сек назад`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} мин назад`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours} ч назад`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} дн назад`;
+  }
+
+  // Initialize on load
+  loadInitialData();
 })();

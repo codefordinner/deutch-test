@@ -24,3 +24,16 @@ model Word {
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
 }
+
+model VisitorLog {
+  id         String   @id @default(cuid())
+  ip         String
+  userAgent  String?
+  device     String?
+  browser    String?
+  os         String?
+  page       String
+  action     String?
+  referrer   String?
+  createdAt  DateTime @default(now())
+}

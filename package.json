@@ -1,6 +1,6 @@
 {
   "name": "german-trainer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Локальный тренажёр немецких числительных и слов с админ-панелью",
   "homepage": "https://github.com/codefordinner/deutch-test#readme",
   "bugs": {
@@ -15,11 +15,11 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "dev": "node --watch server.js",
+    "dev": "node --watch-path=src --watch-path=server.js --watch-path=public server.js",
     "build": "npx prisma generate",
     "postinstall": "prisma generate",
     "start": "node server.js",
-    "lint": "node --check server.js src/app.js src/config/index.js src/routes/index.js src/db/prisma.js"
+    "lint": "node --check server.js src/app.js src/config/index.js src/routes/index.js src/db/prisma.js src/routes/analyticsRoutes.js src/controllers/analyticsController.js src/services/analyticsService.js"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
