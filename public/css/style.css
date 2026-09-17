@@ -87,6 +87,7 @@ h1 {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
   margin-bottom: 20px;
@@ -322,6 +323,10 @@ button:hover { background: var(--accent-hover); }
   flex-wrap: wrap;
 }
 
+body.hide-stats .scorebar {
+  display: none !important;
+}
+
 .scorebar b { color: var(--text-primary); font-weight: 600; }
 
 .reset-btn {
@@ -353,6 +358,223 @@ button:hover { background: var(--accent-hover); }
 }
 
 .admin-link:hover { color: var(--accent); }
+
+.app-version {
+  text-align: center;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  user-select: none;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Time Module Styles ---- */
+
+.time-view-toggle {
+  display: inline-flex;
+  background: var(--settings-bg);
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  gap: 2px;
+}
+
+.time-view-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  font-size: 13px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.time-view-btn:hover {
+  color: var(--text-primary);
+}
+
+.time-view-btn.active {
+  background: var(--accent);
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.time-digital-display {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: 10px 22px;
+  background: var(--settings-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: inline-block;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.time-both-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-digital-sub {
+  font-size: 22px;
+  padding: 5px 16px;
+  letter-spacing: 1.5px;
+}
+
+.analog-clock {
+  display: inline-block;
+  vertical-align: middle;
+  color: var(--text-primary);
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,0.08));
+  user-select: none;
+}
+
+.clock-face {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 3.5;
+}
+
+.clock-ticks line {
+  stroke: var(--text-primary);
+}
+
+.clock-numbers text {
+  fill: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clock-hour-hand {
+  stroke: var(--text-primary);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+}
+
+.clock-minute-hand {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.clock-center-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+/* Presentation / Flashcard mode */
+
+.pres-reveal-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.pres-reveal-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.pres-reveal-btn:active {
+  transform: translateY(0);
+}
+
+.pres-answer-card {
+  background: var(--settings-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: presFadeIn 0.22s ease-out;
+}
+
+@keyframes presFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pres-main-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.pres-sub-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.pres-official-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.pres-rate-btn {
+  font-size: 14px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.pres-btn-know {
+  background: var(--success);
+  color: white;
+}
+
+.pres-btn-know:hover {
+  background: #237b4b;
+}
+
+.pres-btn-dontknow {
+  background: var(--danger);
+  color: white;
+}
+
+.pres-btn-dontknow:hover {
+  background: #a5291b;
+}
+
+.time-hint-box {
+  background: var(--settings-bg);
+  border-left: 3px solid var(--accent);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: left;
+  max-width: 320px;
+  margin-top: 4px;
+}
 
 /* ---- admin page ---- */
 

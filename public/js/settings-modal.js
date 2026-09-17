@@ -75,4 +75,39 @@
       saveShowUmlauts(cb.checked);
     });
   });
+
+  // ---- отключение/показ панели статистики ----
+  var HIDE_STATS_KEY = "german-trainer-hide-stats";
+
+  function loadHideStats() {
+    try {
+      var raw = localStorage.getItem(HIDE_STATS_KEY);
+      return raw === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function applyHideStats(hide) {
+    document.body.classList.toggle("hide-stats", hide);
+    document.querySelectorAll(".stats-disable-cb").forEach(function (cb) {
+      cb.checked = hide;
+    });
+  }
+
+  function saveHideStats(hide) {
+    try {
+      localStorage.setItem(HIDE_STATS_KEY, hide ? "1" : "0");
+    } catch (e) {}
+  }
+
+  var initialHideStats = loadHideStats();
+  applyHideStats(initialHideStats);
+
+  document.querySelectorAll(".stats-disable-cb").forEach(function (cb) {
+    cb.addEventListener("change", function () {
+      applyHideStats(cb.checked);
+      saveHideStats(cb.checked);
+    });
+  });
 })();

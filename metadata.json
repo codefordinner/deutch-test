@@ -1,6 +1,6 @@
 {
   "name": "German Language Trainer",
-  "description": "German numbers and vocabulary training app with admin management panel",
+  "description": "German numbers, vocabulary, and time training app with admin management panel",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
