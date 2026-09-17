@@ -19,7 +19,7 @@
     "build": "npx prisma generate",
     "postinstall": "prisma generate",
     "start": "node server.js",
-    "lint": "node --check server.js src/app.js src/config/index.js src/routes/index.js src/db/prisma.js src/routes/analyticsRoutes.js src/controllers/analyticsController.js src/services/analyticsService.js"
+    "lint": "node --check server.js src/app.js src/config/index.js src/routes/index.js src/routes/authRoutes.js src/routes/categoryRoutes.js src/routes/wordRoutes.js src/routes/analyticsRoutes.js src/controllers/authController.js src/controllers/categoryController.js src/controllers/wordController.js src/controllers/analyticsController.js src/services/authService.js src/services/categoryService.js src/services/wordService.js src/services/analyticsService.js src/db/prisma.js"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

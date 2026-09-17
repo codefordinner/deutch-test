@@ -1,6 +1,19 @@
 const prisma = require("../db/prisma");
 
 class WordService {
+  async getAllWords() {
+    if (!prisma) return [];
+    try {
+      return await prisma.word.findMany({
+        include: { category: true },
+        orderBy: { createdAt: "asc" }
+      });
+    } catch (err) {
+      console.error("[WordService] getAllWords error:", err);
+      return [];
+    }
+  }
+
   async checkDuplicates(de, ru, excludeId = null) {
     if (!prisma) return { isDuplicate: false, matches: [] };
 
@@ -71,10 +84,10 @@ class WordService {
     });
   }
 
-  async updateWord(id, de, ru, plural = undefined, feminine = undefined, force = false) {
+  async updateWord(id, de, ru, plural = undefined, feminine = undefined, force = false, categoryId = undefined) {
     if (!prisma) throw new Error("База данных недоступна");
 
-    if (!force) {
+    if (de && ru && !force) {
       const dupCheck = await this.checkDuplicates(de, ru, id);
       if (dupCheck.isDuplicate) {
         const error = new Error(`Такое слово уже существует в категории «${dupCheck.matches[0].categoryName}»`);
@@ -85,17 +98,23 @@ class WordService {
       }
     }
 
-    const updateData = { de, ru };
+    const updateData = {};
+    if (de !== undefined && de !== null) updateData.de = de;
+    if (ru !== undefined && ru !== null) updateData.ru = ru;
     if (plural !== undefined) {
       updateData.plural = plural && String(plural).trim() ? String(plural).trim() : null;
     }
     if (feminine !== undefined) {
       updateData.feminine = feminine && String(feminine).trim() ? String(feminine).trim() : null;
     }
+    if (categoryId !== undefined && categoryId !== null) {
+      updateData.categoryId = categoryId;
+    }
 
     return await prisma.word.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      include: { category: true }
     });
   }
 

@@ -1,6 +1,15 @@
 const wordService = require("../services/wordService");
 
 class WordController {
+  async getAllWords(req, res, next) {
+    try {
+      const words = await wordService.getAllWords();
+      res.json(words);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async checkDuplicate(req, res, next) {
     const { de, ru, excludeId } = req.query;
     try {
@@ -12,18 +21,23 @@ class WordController {
   }
 
   async createWord(req, res, next) {
+    const categoryId = req.params.id || req.body.categoryId;
     const de = (req.body.de || "").trim();
     const ru = (req.body.ru || "").trim();
     const plural = req.body.plural !== undefined ? (req.body.plural || "").trim() : null;
     const feminine = req.body.feminine !== undefined ? (req.body.feminine || "").trim() : null;
     const force = req.query.force === "true" || req.body.force === true;
 
+    if (!categoryId) {
+      return res.status(400).json({ error: "Категория обязательна" });
+    }
+
     if (!de || !ru) {
       return res.status(400).json({ error: "Нужны оба поля: de и ru" });
     }
 
     try {
-      const word = await wordService.createWord(req.params.id, de, ru, plural, feminine, force);
+      const word = await wordService.createWord(categoryId, de, ru, plural, feminine, force);
       res.status(201).json(word);
     } catch (error) {
       if (error.status === 404) {
@@ -41,18 +55,19 @@ class WordController {
   }
 
   async updateWord(req, res, next) {
-    const de = (req.body.de || "").trim();
-    const ru = (req.body.ru || "").trim();
+    const de = req.body.de !== undefined ? (req.body.de || "").trim() : undefined;
+    const ru = req.body.ru !== undefined ? (req.body.ru || "").trim() : undefined;
     const plural = req.body.plural !== undefined ? (req.body.plural || "").trim() : undefined;
     const feminine = req.body.feminine !== undefined ? (req.body.feminine || "").trim() : undefined;
+    const categoryId = req.body.categoryId;
     const force = req.query.force === "true" || req.body.force === true;
 
-    if (!de || !ru) {
-      return res.status(400).json({ error: "Нужны оба поля: de и ru" });
+    if (de === "" || ru === "") {
+      return res.status(400).json({ error: "Поля de и ru не могут быть пустыми" });
     }
 
     try {
-      const word = await wordService.updateWord(req.params.id, de, ru, plural, feminine, force);
+      const word = await wordService.updateWord(req.params.id, de, ru, plural, feminine, force, categoryId);
       res.json(word);
     } catch (error) {
       if (error.status === 409) {

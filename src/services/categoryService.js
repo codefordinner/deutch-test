@@ -36,6 +36,37 @@ class CategoryService {
     return [];
   }
 
+  async getCategoryById(id) {
+    if (prisma) {
+      try {
+        const category = await prisma.category.findUnique({
+          where: { id },
+          include: {
+            words: {
+              orderBy: { createdAt: "asc" }
+            }
+          }
+        });
+        return category;
+      } catch (err) {
+        console.error("[CategoryService] findUnique error:", err);
+      }
+    }
+
+    try {
+      const dbJsonPath = path.join(config.dataDir, "db.json");
+      if (fs.existsSync(dbJsonPath)) {
+        const raw = fs.readFileSync(dbJsonPath, "utf-8");
+        const parsed = JSON.parse(raw);
+        return (parsed.categories || []).find((c) => c.id === id) || null;
+      }
+    } catch (e) {
+      console.error("[CategoryService] Fallback JSON read error:", e);
+    }
+
+    return null;
+  }
+
   async createCategory(name) {
     if (!prisma) {
       throw new Error("База данных недоступна");
