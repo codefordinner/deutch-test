@@ -17,6 +17,7 @@
   "scripts": {
     "dev": "node --watch server.js",
     "build": "npx prisma generate",
+    "postinstall": "prisma generate",
     "start": "node server.js",
     "lint": "node --check server.js src/app.js src/config/index.js src/routes/index.js src/db/prisma.js"
   },

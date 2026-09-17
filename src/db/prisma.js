@@ -14,7 +14,7 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = config.databaseUrl;
 }
 
-// Auto-run Prisma db push and initial JSON migration only if needed
+// Auto-run Prisma db push and initial JSON migration if needed
 function initializeDatabase() {
   try {
     const rootDir = path.join(__dirname, "..", "..");
@@ -28,9 +28,11 @@ function initializeDatabase() {
     const dbSubdirPath = path.join(prismaDir, "prisma", "dev.db");
     const dbExists = fs.existsSync(dbFilePath) || fs.existsSync(dbSubdirPath);
 
+    // Always run db push to ensure schema columns (like plural, feminine) and client are up to date
+    execSync("npx prisma db push --accept-data-loss", { stdio: "ignore", cwd: rootDir });
+
     if (!dbExists) {
-      console.log("[Database Init] First run detected. Pushing Prisma schema...");
-      execSync("npx prisma db push --accept-data-loss", { stdio: "inherit", cwd: rootDir });
+      console.log("[Database Init] First run detected. Importing initial json if present...");
       const migrateScript = path.join(rootDir, "migrate-json.js");
       if (fs.existsSync(migrateScript)) {
         execSync(`node "${migrateScript}"`, { stdio: "inherit", cwd: rootDir });
