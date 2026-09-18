@@ -1086,7 +1086,8 @@
 
     if (w.praeteritum) {
       const reg = conjugateRegularVerb(w.de);
-      if (reg && w.praeteritum !== reg.praeteritum) return "irregular";
+      const cleanPrat = String(w.praeteritum).trim().toLowerCase().replace(/^(er|sie|es)\s+/i, "");
+      if (reg && cleanPrat !== reg.praeteritum) return "irregular";
     }
 
     return "regular";
@@ -1508,6 +1509,13 @@
   if (verbModalCategory) {
     verbModalCategory.addEventListener("change", () => {
       userManuallyToggledType = true;
+      if (verbModalType) {
+        if (verbModalCategory.value === "cat_irregular_verbs") {
+          verbModalType.value = "irregular";
+        } else if (verbModalCategory.value === "cat_regular_verbs") {
+          verbModalType.value = "regular";
+        }
+      }
     });
   }
 

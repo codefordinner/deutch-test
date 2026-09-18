@@ -540,6 +540,36 @@
         </div>
       </div>
 
+      <!-- Row 4: Verb Forms (Präteritum, Hilfsverb, Partizip II) -->
+      <div style="padding: 10px 12px; background: var(--settings-bg); border-radius: 8px; border: 1px solid var(--border);">
+        <div style="font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px;">
+          ⚡ Основные формы (для Präteritum / Perfekt):
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label for="verb-modal-praeteritum" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">Präteritum (3 л. ед.ч.):</label>
+            <input type="text" id="verb-modal-praeteritum" placeholder="напр. ging / machte" style="width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+          </div>
+          <div>
+            <label for="verb-modal-praesens" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">3 л. ед.ч. (Präsens):</label>
+            <input type="text" id="verb-modal-praesens" placeholder="er geht / er spricht" style="width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 110px 1fr; gap: 8px;">
+          <div>
+            <label for="verb-modal-hilfsverb" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">Hilfsverb:</label>
+            <select id="verb-modal-hilfsverb" style="width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+              <option value="haben">hat (haben)</option>
+              <option value="sein">ist (sein)</option>
+            </select>
+          </div>
+          <div>
+            <label for="verb-modal-partizip2" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">Partizip II:</label>
+            <input type="text" id="verb-modal-partizip2" placeholder="gegangen / gemacht" style="width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+          </div>
+        </div>
+      </div>
+
       <!-- Live Conjugation Preview in Präsens -->
       <div id="verb-modal-conjugation-preview" style="padding: 10px 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
