@@ -1029,9 +1029,9 @@
     };
   }
 
-  function getVerbForms(infinitive, userPraesens, userPraeteritum, userPartizip2, userHilfsverb) {
+  function getVerbForms(infinitive, userPraesens, userPraeteritum, userPartizip2, userHilfsverb, forceRegular = false) {
     const key = (infinitive || "").trim().toLowerCase();
-    const known = KNOWN_VERBS_DICT[key];
+    const known = forceRegular ? null : KNOWN_VERBS_DICT[key];
     const regular = conjugateRegularVerb(infinitive);
 
     let forms;
@@ -1081,14 +1081,17 @@
     if (catId === "cat_irregular_verbs" || catName.includes("неправильн")) return "irregular";
     if (catId === "cat_regular_verbs" || catName.includes("обычн")) return "regular";
 
-    const known = KNOWN_VERBS_DICT[de];
-    if (known) return known.isIrregular ? "irregular" : "regular";
-
+    // If user explicitly saved Präteritum, let's determine type from it!
     if (w.praeteritum) {
       const reg = conjugateRegularVerb(w.de);
       const cleanPrat = String(w.praeteritum).trim().toLowerCase().replace(/^(er|sie|es)\s+/i, "");
-      if (reg && cleanPrat !== reg.praeteritum) return "irregular";
+      if (reg) {
+        return (cleanPrat === reg.praeteritum) ? "regular" : "irregular";
+      }
     }
+
+    const known = KNOWN_VERBS_DICT[de];
+    if (known) return known.isIrregular ? "irregular" : "regular";
 
     return "regular";
   }
@@ -1096,7 +1099,7 @@
   function refreshVerbsData() {
     allVerbs = (allWordsCache || []).filter(isVerbWord).map((w) => {
       const vtype = classifyVerbType(w);
-      const computed = getVerbForms(w.de, w.praesens, w.praeteritum, w.partizip2, w.hilfsverb);
+      const computed = getVerbForms(w.de, w.praesens, w.praeteritum, w.partizip2, w.hilfsverb, vtype === "regular");
       return {
         ...w,
         vtype,
@@ -1425,8 +1428,9 @@
     const prat = verbModalPraeteritum ? verbModalPraeteritum.value.trim() : "";
     const p2 = verbModalPartizip2 ? verbModalPartizip2.value.trim() : "";
     const aux = verbModalHilfsverb ? verbModalHilfsverb.value : "haben";
+    const forceRegular = verbModalType ? (verbModalType.value === "regular") : false;
 
-    const computed = getVerbForms(inf, p3, prat, p2, aux);
+    const computed = getVerbForms(inf, p3, prat, p2, aux, forceRegular);
     const f = computed.forms;
 
     if (vpreviewIch) {
@@ -1497,12 +1501,65 @@
     });
   }
 
+  function regenerateVerbFormsInModal(isRegular) {
+    const inf = verbModalDe ? verbModalDe.value.trim() : "";
+    if (!inf) return;
+
+    if (isRegular) {
+      const reg = conjugateRegularVerb(inf);
+      if (reg) {
+        if (verbModalPraesens) verbModalPraesens.value = reg.praesens || "";
+        if (verbModalPraeteritum) verbModalPraeteritum.value = reg.praeteritum || "";
+        if (verbModalHilfsverb) verbModalHilfsverb.value = reg.hilfsverb || "haben";
+        if (verbModalPartizip2) verbModalPartizip2.value = reg.partizip2 || "";
+
+        if (vpreviewIch) vpreviewIch.value = reg.forms?.ich || "";
+        if (vpreviewDu) vpreviewDu.value = reg.forms?.du || "";
+        if (vpreviewEr) vpreviewEr.value = reg.forms?.er || "";
+        if (vpreviewWir) vpreviewWir.value = reg.forms?.wir || "";
+        if (vpreviewIhr) vpreviewIhr.value = reg.forms?.ihr || "";
+        if (vpreviewSie) vpreviewSie.value = reg.forms?.sie || "";
+      }
+    } else {
+      const known = KNOWN_VERBS_DICT[inf.toLowerCase()];
+      if (known) {
+        if (verbModalPraesens) verbModalPraesens.value = known.praesens || "";
+        if (verbModalPraeteritum) verbModalPraeteritum.value = known.praeteritum || "";
+        if (verbModalHilfsverb) verbModalHilfsverb.value = known.hilfsverb || "haben";
+        if (verbModalPartizip2) verbModalPartizip2.value = known.partizip2 || "";
+
+        if (known.forms) {
+          if (vpreviewIch) vpreviewIch.value = known.forms.ich || "";
+          if (vpreviewDu) vpreviewDu.value = known.forms.du || "";
+          if (vpreviewEr) vpreviewEr.value = known.forms.er || "";
+          if (vpreviewWir) vpreviewWir.value = known.forms.wir || "";
+          if (vpreviewIhr) vpreviewIhr.value = known.forms.ihr || "";
+          if (vpreviewSie) vpreviewSie.value = known.forms.sie || "";
+        }
+      } else {
+        if (verbModalPraesens) verbModalPraesens.value = "";
+        if (verbModalPraeteritum) verbModalPraeteritum.value = "";
+        if (verbModalHilfsverb) verbModalHilfsverb.value = "haben";
+        if (verbModalPartizip2) verbModalPartizip2.value = "";
+
+        if (vpreviewIch) vpreviewIch.value = "";
+        if (vpreviewDu) vpreviewDu.value = "";
+        if (vpreviewEr) vpreviewEr.value = "";
+        if (vpreviewWir) vpreviewWir.value = "";
+        if (vpreviewIhr) vpreviewIhr.value = "";
+        if (vpreviewSie) vpreviewSie.value = "";
+      }
+    }
+    updateVerbConjugationPreview(true);
+  }
+
   if (verbModalType) {
     verbModalType.addEventListener("change", () => {
       userManuallyToggledType = true;
       if (verbModalCategory) {
         verbModalCategory.value = getVerbCategoryForType(verbModalType.value);
       }
+      regenerateVerbFormsInModal(verbModalType.value === "regular");
     });
   }
 
@@ -1516,6 +1573,7 @@
           verbModalType.value = "regular";
         }
       }
+      regenerateVerbFormsInModal(verbModalType.value === "regular");
     });
   }
 
