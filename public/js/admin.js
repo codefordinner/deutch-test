@@ -1336,6 +1336,8 @@
     });
   }
 
+  let userManuallyToggledType = false;
+
   // Open Add Verb Modal
   if (openAddVerbBtn) {
     openAddVerbBtn.addEventListener("click", () => {
@@ -1354,6 +1356,7 @@
 
   function openAddVerbModal() {
     editingVerb = null;
+    userManuallyToggledType = false;
     populateCategoryDropdowns();
     if (verbModalDupBanner) verbModalDupBanner.style.display = "none";
     if (verbModalTitle) verbModalTitle.textContent = "Добавление глагола";
@@ -1385,6 +1388,7 @@
 
   function openEditVerbModal(v) {
     editingVerb = v;
+    userManuallyToggledType = true;
     populateCategoryDropdowns();
     if (verbModalDupBanner) verbModalDupBanner.style.display = "none";
     if (verbModalTitle) verbModalTitle.textContent = `Редактирование глагола: ${v.de}`;
@@ -1494,8 +1498,36 @@
 
   if (verbModalType) {
     verbModalType.addEventListener("change", () => {
+      userManuallyToggledType = true;
       if (verbModalCategory) {
         verbModalCategory.value = getVerbCategoryForType(verbModalType.value);
+      }
+    });
+  }
+
+  if (verbModalCategory) {
+    verbModalCategory.addEventListener("change", () => {
+      userManuallyToggledType = true;
+    });
+  }
+
+  if (verbModalDe) {
+    verbModalDe.addEventListener("input", () => {
+      if (editingVerb) return;
+      if (userManuallyToggledType) return;
+
+      const val = verbModalDe.value.trim().toLowerCase();
+      if (!val) return;
+
+      const known = KNOWN_VERBS_DICT[val];
+      const isIrreg = !!(known && known.isIrregular);
+      const targetType = isIrreg ? "irregular" : "regular";
+
+      if (verbModalType && verbModalType.value !== targetType) {
+        verbModalType.value = targetType;
+        if (verbModalCategory) {
+          verbModalCategory.value = getVerbCategoryForType(targetType);
+        }
       }
     });
   }
