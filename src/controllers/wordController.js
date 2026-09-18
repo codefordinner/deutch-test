@@ -31,6 +31,12 @@ class WordController {
     const partizip2 = req.body.partizip2 !== undefined ? (req.body.partizip2 || "").trim() : null;
     const hilfsverb = req.body.hilfsverb !== undefined ? (req.body.hilfsverb || "").trim() : null;
     const praesens = req.body.praesens !== undefined ? (req.body.praesens || "").trim() : null;
+    const praesensIch = req.body.praesensIch !== undefined ? (req.body.praesensIch || "").trim() : null;
+    const praesensDu = req.body.praesensDu !== undefined ? (req.body.praesensDu || "").trim() : null;
+    const praesensEr = req.body.praesensEr !== undefined ? (req.body.praesensEr || "").trim() : null;
+    const praesensWir = req.body.praesensWir !== undefined ? (req.body.praesensWir || "").trim() : null;
+    const praesensIhr = req.body.praesensIhr !== undefined ? (req.body.praesensIhr || "").trim() : null;
+    const praesensSie = req.body.praesensSie !== undefined ? (req.body.praesensSie || "").trim() : null;
     const force = req.query.force === "true" || req.body.force === true;
 
     if (!categoryId) {
@@ -46,7 +52,13 @@ class WordController {
         praeteritum,
         partizip2,
         hilfsverb,
-        praesens
+        praesens,
+        praesensIch,
+        praesensDu,
+        praesensEr,
+        praesensWir,
+        praesensIhr,
+        praesensSie
       });
       res.status(201).json(word);
     } catch (error) {
@@ -74,6 +86,12 @@ class WordController {
     const partizip2 = req.body.partizip2 !== undefined ? (req.body.partizip2 || "").trim() : undefined;
     const hilfsverb = req.body.hilfsverb !== undefined ? (req.body.hilfsverb || "").trim() : undefined;
     const praesens = req.body.praesens !== undefined ? (req.body.praesens || "").trim() : undefined;
+    const praesensIch = req.body.praesensIch !== undefined ? (req.body.praesensIch || "").trim() : undefined;
+    const praesensDu = req.body.praesensDu !== undefined ? (req.body.praesensDu || "").trim() : undefined;
+    const praesensEr = req.body.praesensEr !== undefined ? (req.body.praesensEr || "").trim() : undefined;
+    const praesensWir = req.body.praesensWir !== undefined ? (req.body.praesensWir || "").trim() : undefined;
+    const praesensIhr = req.body.praesensIhr !== undefined ? (req.body.praesensIhr || "").trim() : undefined;
+    const praesensSie = req.body.praesensSie !== undefined ? (req.body.praesensSie || "").trim() : undefined;
     const categoryId = req.body.categoryId;
     const force = req.query.force === "true" || req.body.force === true;
 
@@ -86,7 +104,13 @@ class WordController {
         praeteritum,
         partizip2,
         hilfsverb,
-        praesens
+        praesens,
+        praesensIch,
+        praesensDu,
+        praesensEr,
+        praesensWir,
+        praesensIhr,
+        praesensSie
       });
       res.json(word);
     } catch (error) {

@@ -82,6 +82,12 @@ class WordService {
     const cleanPartizip2 = extra.partizip2 && String(extra.partizip2).trim() ? String(extra.partizip2).trim() : null;
     const cleanHilfsverb = extra.hilfsverb && String(extra.hilfsverb).trim() ? String(extra.hilfsverb).trim() : null;
     const cleanPraesens = extra.praesens && String(extra.praesens).trim() ? String(extra.praesens).trim() : null;
+    const cleanPraesensIch = extra.praesensIch && String(extra.praesensIch).trim() ? String(extra.praesensIch).trim() : null;
+    const cleanPraesensDu = extra.praesensDu && String(extra.praesensDu).trim() ? String(extra.praesensDu).trim() : null;
+    const cleanPraesensEr = extra.praesensEr && String(extra.praesensEr).trim() ? String(extra.praesensEr).trim() : null;
+    const cleanPraesensWir = extra.praesensWir && String(extra.praesensWir).trim() ? String(extra.praesensWir).trim() : null;
+    const cleanPraesensIhr = extra.praesensIhr && String(extra.praesensIhr).trim() ? String(extra.praesensIhr).trim() : null;
+    const cleanPraesensSie = extra.praesensSie && String(extra.praesensSie).trim() ? String(extra.praesensSie).trim() : null;
 
     return await prisma.word.create({
       data: {
@@ -94,6 +100,12 @@ class WordService {
         partizip2: cleanPartizip2,
         hilfsverb: cleanHilfsverb,
         praesens: cleanPraesens,
+        praesensIch: cleanPraesensIch,
+        praesensDu: cleanPraesensDu,
+        praesensEr: cleanPraesensEr,
+        praesensWir: cleanPraesensWir,
+        praesensIhr: cleanPraesensIhr,
+        praesensSie: cleanPraesensSie,
         categoryId
       }
     });
@@ -136,6 +148,24 @@ class WordService {
     }
     if (extra.praesens !== undefined) {
       updateData.praesens = extra.praesens && String(extra.praesens).trim() ? String(extra.praesens).trim() : null;
+    }
+    if (extra.praesensIch !== undefined) {
+      updateData.praesensIch = extra.praesensIch && String(extra.praesensIch).trim() ? String(extra.praesensIch).trim() : null;
+    }
+    if (extra.praesensDu !== undefined) {
+      updateData.praesensDu = extra.praesensDu && String(extra.praesensDu).trim() ? String(extra.praesensDu).trim() : null;
+    }
+    if (extra.praesensEr !== undefined) {
+      updateData.praesensEr = extra.praesensEr && String(extra.praesensEr).trim() ? String(extra.praesensEr).trim() : null;
+    }
+    if (extra.praesensWir !== undefined) {
+      updateData.praesensWir = extra.praesensWir && String(extra.praesensWir).trim() ? String(extra.praesensWir).trim() : null;
+    }
+    if (extra.praesensIhr !== undefined) {
+      updateData.praesensIhr = extra.praesensIhr && String(extra.praesensIhr).trim() ? String(extra.praesensIhr).trim() : null;
+    }
+    if (extra.praesensSie !== undefined) {
+      updateData.praesensSie = extra.praesensSie && String(extra.praesensSie).trim() ? String(extra.praesensSie).trim() : null;
     }
     if (categoryId !== undefined && categoryId !== null) {
       updateData.categoryId = categoryId;
@@ -249,6 +279,12 @@ class WordService {
       const cleanPartizip2 = item.partizip2 && String(item.partizip2).trim() ? String(item.partizip2).trim() : null;
       const cleanHilfsverb = item.hilfsverb && String(item.hilfsverb).trim() ? String(item.hilfsverb).trim() : null;
       const cleanPraesens = item.praesens && String(item.praesens).trim() ? String(item.praesens).trim() : null;
+      const cleanPraesensIch = item.praesensIch && String(item.praesensIch).trim() ? String(item.praesensIch).trim() : null;
+      const cleanPraesensDu = item.praesensDu && String(item.praesensDu).trim() ? String(item.praesensDu).trim() : null;
+      const cleanPraesensEr = item.praesensEr && String(item.praesensEr).trim() ? String(item.praesensEr).trim() : null;
+      const cleanPraesensWir = item.praesensWir && String(item.praesensWir).trim() ? String(item.praesensWir).trim() : null;
+      const cleanPraesensIhr = item.praesensIhr && String(item.praesensIhr).trim() ? String(item.praesensIhr).trim() : null;
+      const cleanPraesensSie = item.praesensSie && String(item.praesensSie).trim() ? String(item.praesensSie).trim() : null;
 
       await prisma.word.create({
         data: {
@@ -261,6 +297,12 @@ class WordService {
           partizip2: cleanPartizip2,
           hilfsverb: cleanHilfsverb,
           praesens: cleanPraesens,
+          praesensIch: cleanPraesensIch,
+          praesensDu: cleanPraesensDu,
+          praesensEr: cleanPraesensEr,
+          praesensWir: cleanPraesensWir,
+          praesensIhr: cleanPraesensIhr,
+          praesensSie: cleanPraesensSie,
           categoryId: catId
         }
       });

@@ -1367,7 +1367,14 @@
     if (verbModalHilfsverb) verbModalHilfsverb.value = "haben";
     if (verbModalPartizip2) verbModalPartizip2.value = "";
 
-    updateVerbConjugationPreview();
+    if (vpreviewIch) vpreviewIch.value = "";
+    if (vpreviewDu) vpreviewDu.value = "";
+    if (vpreviewEr) vpreviewEr.value = "";
+    if (vpreviewWir) vpreviewWir.value = "";
+    if (vpreviewIhr) vpreviewIhr.value = "";
+    if (vpreviewSie) vpreviewSie.value = "";
+
+    updateVerbConjugationPreview(true);
 
     if (verbModal) {
       verbModal.classList.remove("hidden");
@@ -1391,7 +1398,14 @@
     if (verbModalHilfsverb) verbModalHilfsverb.value = (v.hilfsverb === "sein" || v.computedHilfsverb === "sein") ? "sein" : "haben";
     if (verbModalPartizip2) verbModalPartizip2.value = v.partizip2 || v.computedPartizip2 || "";
 
-    updateVerbConjugationPreview();
+    if (vpreviewIch) vpreviewIch.value = v.praesensIch || "";
+    if (vpreviewDu) vpreviewDu.value = v.praesensDu || "";
+    if (vpreviewEr) vpreviewEr.value = v.praesensEr || v.praesens || "";
+    if (vpreviewWir) vpreviewWir.value = v.praesensWir || "";
+    if (vpreviewIhr) vpreviewIhr.value = v.praesensIhr || "";
+    if (vpreviewSie) vpreviewSie.value = v.praesensSie || "";
+
+    updateVerbConjugationPreview(false);
 
     if (verbModal) {
       verbModal.classList.remove("hidden");
@@ -1400,7 +1414,7 @@
     }
   }
 
-  function updateVerbConjugationPreview() {
+  function updateVerbConjugationPreview(overwriteAll = false) {
     const inf = verbModalDe ? verbModalDe.value.trim() : "";
     const p3 = verbModalPraesens ? verbModalPraesens.value.trim() : "";
     const prat = verbModalPraeteritum ? verbModalPraeteritum.value.trim() : "";
@@ -1410,12 +1424,24 @@
     const computed = getVerbForms(inf, p3, prat, p2, aux);
     const f = computed.forms;
 
-    if (vpreviewIch) vpreviewIch.textContent = f.ich || "-";
-    if (vpreviewDu) vpreviewDu.textContent = f.du || "-";
-    if (vpreviewEr) vpreviewEr.textContent = f.er || "-";
-    if (vpreviewWir) vpreviewWir.textContent = f.wir || "-";
-    if (vpreviewIhr) vpreviewIhr.textContent = f.ihr || "-";
-    if (vpreviewSie) vpreviewSie.textContent = f.sie || "-";
+    if (vpreviewIch) {
+      if (overwriteAll || !vpreviewIch.value.trim()) vpreviewIch.value = f.ich || "";
+    }
+    if (vpreviewDu) {
+      if (overwriteAll || !vpreviewDu.value.trim()) vpreviewDu.value = f.du || "";
+    }
+    if (vpreviewEr) {
+      if (overwriteAll || !vpreviewEr.value.trim()) vpreviewEr.value = f.er || "";
+    }
+    if (vpreviewWir) {
+      if (overwriteAll || !vpreviewWir.value.trim()) vpreviewWir.value = f.wir || "";
+    }
+    if (vpreviewIhr) {
+      if (overwriteAll || !vpreviewIhr.value.trim()) vpreviewIhr.value = f.ihr || "";
+    }
+    if (vpreviewSie) {
+      if (overwriteAll || !vpreviewSie.value.trim()) vpreviewSie.value = f.sie || "";
+    }
 
     if (verbModalVowelNote) {
       verbModalVowelNote.textContent = computed.vowelChange ? `(${computed.vowelChange})` : "";
@@ -1517,6 +1543,13 @@
       const hilfsverb = verbModalHilfsverb ? verbModalHilfsverb.value : "haben";
       const partizip2 = verbModalPartizip2 ? verbModalPartizip2.value.trim() : "";
 
+      const praesensIch = vpreviewIch ? vpreviewIch.value.trim() : "";
+      const praesensDu = vpreviewDu ? vpreviewDu.value.trim() : "";
+      const praesensEr = vpreviewEr ? vpreviewEr.value.trim() : "";
+      const praesensWir = vpreviewWir ? vpreviewWir.value.trim() : "";
+      const praesensIhr = vpreviewIhr ? vpreviewIhr.value.trim() : "";
+      const praesensSie = vpreviewSie ? vpreviewSie.value.trim() : "";
+
       if (!de || !ru) {
         showToast("Заполните инфинитив и перевод", "error");
         if (!de && verbModalDe) verbModalDe.focus();
@@ -1533,7 +1566,7 @@
       const parts = [];
       if (praeteritum) parts.push(praeteritum);
       if (partizip2) parts.push(`${hilfsverb} ${partizip2}`);
-      if (praesens) parts.push(`(er ${praesens})`);
+      if (praesensEr || praesens) parts.push(`(er ${praesensEr || praesens})`);
       const plural = parts.join(", ");
 
       const payload = {
@@ -1543,7 +1576,13 @@
         praeteritum: praeteritum || null,
         partizip2: partizip2 || null,
         hilfsverb: hilfsverb || "haben",
-        praesens: praesens || null,
+        praesens: praesensEr || praesens || null,
+        praesensIch: praesensIch || null,
+        praesensDu: praesensDu || null,
+        praesensEr: praesensEr || null,
+        praesensWir: praesensWir || null,
+        praesensIhr: praesensIhr || null,
+        praesensSie: praesensSie || null,
         plural: plural || null,
         feminine: null,
         femininePlural: null
@@ -1564,6 +1603,16 @@
       } catch (err) {
         showToast("Ошибка сохранения: " + err.message, "error");
       }
+    });
+  }
+
+  // Synchronize verbModalPraesens with vpreviewEr
+  if (verbModalPraesens && vpreviewEr) {
+    verbModalPraesens.addEventListener("input", () => {
+      vpreviewEr.value = verbModalPraesens.value;
+    });
+    vpreviewEr.addEventListener("input", () => {
+      verbModalPraesens.value = vpreviewEr.value;
     });
   }
 

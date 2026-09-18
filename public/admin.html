@@ -543,16 +543,34 @@
       <!-- Live Conjugation Preview in Präsens -->
       <div id="verb-modal-conjugation-preview" style="padding: 10px 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Спряжение в Präsens:</span>
+          <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Спряжение в Präsens (редактируемые):</span>
           <span id="verb-modal-vowel-note" style="font-size: 11px; color: #7c3aed; font-weight: 500;"></span>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12px;" id="verb-modal-forms-grid">
-          <div><span style="color: var(--text-muted);">ich</span> <b id="vpreview-ich">-</b></div>
-          <div><span style="color: var(--text-muted);">du</span> <b id="vpreview-du">-</b></div>
-          <div><span style="color: var(--text-muted);">er/sie</span> <b id="vpreview-er">-</b></div>
-          <div><span style="color: var(--text-muted);">wir</span> <b id="vpreview-wir">-</b></div>
-          <div><span style="color: var(--text-muted);">ihr</span> <b id="vpreview-ihr">-</b></div>
-          <div><span style="color: var(--text-muted);">sie/Sie</span> <b id="vpreview-sie">-</b></div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px;" id="verb-modal-forms-grid">
+          <div>
+            <span style="color: var(--text-muted); display: block; margin-bottom: 3px;">ich</span>
+            <input type="text" id="vpreview-ich" class="verb-grid-input" placeholder="-">
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; margin-bottom: 3px;">du</span>
+            <input type="text" id="vpreview-du" class="verb-grid-input" placeholder="-">
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; margin-bottom: 3px;">er/sie</span>
+            <input type="text" id="vpreview-er" class="verb-grid-input" placeholder="-">
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; margin-bottom: 3px;">wir</span>
+            <input type="text" id="vpreview-wir" class="verb-grid-input" placeholder="-">
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; margin-bottom: 3px;">ihr</span>
+            <input type="text" id="vpreview-ihr" class="verb-grid-input" placeholder="-">
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; margin-bottom: 3px;">sie/Sie</span>
+            <input type="text" id="vpreview-sie" class="verb-grid-input" placeholder="-">
+          </div>
         </div>
       </div>
 

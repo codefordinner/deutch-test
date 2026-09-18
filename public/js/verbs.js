@@ -467,6 +467,13 @@
         }
       }
 
+      if (w.praesensIch) forms.ich = w.praesensIch.trim();
+      if (w.praesensDu) forms.du = w.praesensDu.trim();
+      if (w.praesensEr) forms.er = w.praesensEr.trim();
+      if (w.praesensWir) forms.wir = w.praesensWir.trim();
+      if (w.praesensIhr) forms.ihr = w.praesensIhr.trim();
+      if (w.praesensSie) forms.sie = w.praesensSie.trim();
+
       var verbObj = {
         id: w.id || "verb_" + deLower,
         de: de,
@@ -475,6 +482,12 @@
         praeteritum: w.praeteritum || "",
         partizip2: w.partizip2 || "",
         hilfsverb: w.hilfsverb || "haben",
+        praesensIch: w.praesensIch || "",
+        praesensDu: w.praesensDu || "",
+        praesensEr: w.praesensEr || "",
+        praesensWir: w.praesensWir || "",
+        praesensIhr: w.praesensIhr || "",
+        praesensSie: w.praesensSie || "",
         conjugation: {
           forms: forms,
           vowelChange: vowelChange,

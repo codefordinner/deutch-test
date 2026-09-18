@@ -14,6 +14,9 @@ process.env.DATABASE_URL = config.databaseUrl;
 
 // Auto-run Prisma db push and initial JSON migration if needed
 function initializeDatabase() {
+  if (process.env.PRISMA_NO_INIT === "true") {
+    return;
+  }
   try {
     const rootDir = path.join(__dirname, "..", "..");
     const prismaDir = path.join(rootDir, "prisma");
@@ -25,7 +28,7 @@ function initializeDatabase() {
     execSync("npx prisma db push --accept-data-loss", {
       stdio: "ignore",
       cwd: rootDir,
-      env: { ...process.env, DATABASE_URL: config.databaseUrl }
+      env: { ...process.env, DATABASE_URL: config.databaseUrl, PRISMA_NO_INIT: "true" }
     });
 
     const migrateScript = path.join(rootDir, "migrate-json.js");
@@ -33,7 +36,16 @@ function initializeDatabase() {
       execSync(`node "${migrateScript}"`, {
         stdio: "ignore",
         cwd: rootDir,
-        env: { ...process.env, DATABASE_URL: config.databaseUrl }
+        env: { ...process.env, DATABASE_URL: config.databaseUrl, PRISMA_NO_INIT: "true" }
+      });
+    }
+
+    const seedScript = path.join(rootDir, "seed-verbs.js");
+    if (fs.existsSync(seedScript)) {
+      execSync(`node "${seedScript}"`, {
+        stdio: "ignore",
+        cwd: rootDir,
+        env: { ...process.env, DATABASE_URL: config.databaseUrl, PRISMA_NO_INIT: "true" }
       });
     }
   } catch (err) {

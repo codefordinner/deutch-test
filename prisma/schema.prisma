@@ -25,6 +25,12 @@ model Word {
   partizip2      String?
   hilfsverb      String?
   praesens       String?
+  praesensIch    String?
+  praesensDu     String?
+  praesensEr     String?
+  praesensWir    String?
+  praesensIhr    String?
+  praesensSie    String?
   categoryId     String
   category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())

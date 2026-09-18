@@ -1503,6 +1503,22 @@ th { color: var(--text-secondary); font-weight: 500; font-size: 12px; }
   font-family: inherit;
 }
 
+.verb-grid-input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  font-weight: 600;
+  transition: border-color 0.15s ease;
+}
+.verb-grid-input:focus {
+  border-color: var(--accent);
+}
+
 /* ---- responsive ---- */
 
 @media (max-width: 480px) {
