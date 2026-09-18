@@ -26,6 +26,7 @@ class WordController {
     const ru = (req.body.ru || "").trim();
     const plural = req.body.plural !== undefined ? (req.body.plural || "").trim() : null;
     const feminine = req.body.feminine !== undefined ? (req.body.feminine || "").trim() : null;
+    const femininePlural = req.body.femininePlural !== undefined ? (req.body.femininePlural || "").trim() : null;
     const force = req.query.force === "true" || req.body.force === true;
 
     if (!categoryId) {
@@ -37,7 +38,7 @@ class WordController {
     }
 
     try {
-      const word = await wordService.createWord(categoryId, de, ru, plural, feminine, force);
+      const word = await wordService.createWord(categoryId, de, ru, plural, feminine, femininePlural, force);
       res.status(201).json(word);
     } catch (error) {
       if (error.status === 404) {
@@ -59,6 +60,7 @@ class WordController {
     const ru = req.body.ru !== undefined ? (req.body.ru || "").trim() : undefined;
     const plural = req.body.plural !== undefined ? (req.body.plural || "").trim() : undefined;
     const feminine = req.body.feminine !== undefined ? (req.body.feminine || "").trim() : undefined;
+    const femininePlural = req.body.femininePlural !== undefined ? (req.body.femininePlural || "").trim() : undefined;
     const categoryId = req.body.categoryId;
     const force = req.query.force === "true" || req.body.force === true;
 
@@ -67,7 +69,7 @@ class WordController {
     }
 
     try {
-      const word = await wordService.updateWord(req.params.id, de, ru, plural, feminine, force, categoryId);
+      const word = await wordService.updateWord(req.params.id, de, ru, plural, feminine, femininePlural, force, categoryId);
       res.json(word);
     } catch (error) {
       if (error.status === 409) {

@@ -15,14 +15,15 @@ model Category {
 }
 
 model Word {
-  id         String   @id @default(cuid())
-  de         String
-  ru         String
-  plural     String?
-  feminine   String?
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id             String   @id @default(cuid())
+  de             String
+  ru             String
+  plural         String?
+  feminine       String?
+  femininePlural String?
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
 }
 
 model VisitorLog {

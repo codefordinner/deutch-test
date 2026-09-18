@@ -91,15 +91,19 @@ async function main() {
               ru: word.ru,
               plural: word.plural || null,
               feminine: word.feminine || null,
+              femininePlural: word.femininePlural || word.feminine_plural || null,
               categoryId: dbCategory.id
             }
           });
           wordCount++;
         } else {
-          // Keep existing or enrich with plural/feminine if provided
+          // Keep existing or enrich with plural/feminine/femininePlural if provided
           const updateData = {};
           if (word.plural && !existingWord.plural) updateData.plural = word.plural;
           if (word.feminine && !existingWord.feminine) updateData.feminine = word.feminine;
+          if ((word.femininePlural || word.feminine_plural) && !existingWord.femininePlural) {
+            updateData.femininePlural = word.femininePlural || word.feminine_plural;
+          }
           if (Object.keys(updateData).length > 0) {
             await prisma.word.update({
               where: { id: existingWord.id },

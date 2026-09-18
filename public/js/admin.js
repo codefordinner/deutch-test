@@ -52,6 +52,7 @@
   const wordModalRu = document.getElementById("word-modal-ru");
   const wordModalPlural = document.getElementById("word-modal-plural");
   const wordModalFeminine = document.getElementById("word-modal-feminine");
+  const wordModalFemininePlural = document.getElementById("word-modal-feminine-plural");
   const wordModalDupBanner = document.getElementById("word-modal-dup-banner");
   const wordModalCancelBtn = document.getElementById("word-modal-cancel-btn");
   const wordModalSaveBtn = document.getElementById("word-modal-save-btn");
@@ -376,8 +377,9 @@
       const ru = (word.ru || "").toLowerCase();
       const plural = (word.plural || "").toLowerCase();
       const feminine = (word.feminine || "").toLowerCase();
+      const femininePlural = (word.femininePlural || "").toLowerCase();
       const catName = (word.category?.name || "").toLowerCase();
-      return de.includes(query) || ru.includes(query) || plural.includes(query) || feminine.includes(query) || catName.includes(query);
+      return de.includes(query) || ru.includes(query) || plural.includes(query) || feminine.includes(query) || femininePlural.includes(query) || catName.includes(query);
     });
 
     if (filtered.length === 0) {
@@ -401,10 +403,13 @@
 
       let extraBadgesHtml = "";
       if (word.plural) {
-        extraBadgesHtml += `<span class="form-badge plural-badge" title="Множественное число">мн.ч: ${escapeHtml(word.plural)}</span>`;
+        extraBadgesHtml += `<span class="form-badge plural-badge" title="Множественное число (общ./м.р.)">мн.ч: ${escapeHtml(word.plural)}</span>`;
       }
       if (word.feminine) {
-        extraBadgesHtml += `<span class="form-badge fem-badge" title="Женский род">ж.р: ${escapeHtml(word.feminine)}</span>`;
+        extraBadgesHtml += `<span class="form-badge fem-badge" title="Женский род (ед.ч.)">ж.р: ${escapeHtml(word.feminine)}</span>`;
+      }
+      if (word.femininePlural) {
+        extraBadgesHtml += `<span class="form-badge fem-plural-badge" title="Множественное число женского рода">мн.ж: ${escapeHtml(word.femininePlural)}</span>`;
       }
 
       let categoryCellHtml = "";
@@ -601,6 +606,7 @@
       wordModalRu.value = word.ru || "";
       wordModalPlural.value = word.plural || "";
       wordModalFeminine.value = word.feminine || "";
+      if (wordModalFemininePlural) wordModalFemininePlural.value = word.femininePlural || "";
     } else {
       wordModalTitle.textContent = "Добавление нового слова";
       if (currentCategoryId !== "all") {
@@ -610,6 +616,7 @@
       wordModalRu.value = "";
       wordModalPlural.value = "";
       wordModalFeminine.value = "";
+      if (wordModalFemininePlural) wordModalFemininePlural.value = "";
     }
 
     wordModal.classList.remove("hidden");
@@ -666,6 +673,7 @@
     const ru = wordModalRu.value.trim();
     const plural = wordModalPlural.value.trim() || null;
     const feminine = wordModalFeminine.value.trim() || null;
+    const femininePlural = wordModalFemininePlural ? (wordModalFemininePlural.value.trim() || null) : null;
 
     if (!categoryId) {
       showToast("Выберите категорию для слова", "error");
@@ -685,11 +693,14 @@
           de,
           ru,
           plural,
-          feminine
+          feminine,
+          femininePlural
         });
         showToast(`Слово «${de}» успешно обновлено!`, "success");
       } else {
-        await ApiClient.createWord ? ApiClient.createWord({ categoryId, de, ru, plural, feminine }) : ApiClient.post("/api/words", { categoryId, de, ru, plural, feminine });
+        await ApiClient.createWord
+          ? ApiClient.createWord({ categoryId, de, ru, plural, feminine, femininePlural })
+          : ApiClient.post("/api/words", { categoryId, de, ru, plural, feminine, femininePlural });
         showToast(`Слово «${de}» добавлено!`, "success");
       }
 
@@ -702,7 +713,7 @@
   });
 
   // Enter to save inside word modal
-  [wordModalDe, wordModalRu, wordModalPlural, wordModalFeminine].forEach((input) => {
+  [wordModalDe, wordModalRu, wordModalPlural, wordModalFeminine, wordModalFemininePlural].filter(Boolean).forEach((input) => {
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         wordModalSaveBtn.click();
@@ -1066,10 +1077,10 @@
       let mimeType = "text/plain;charset=utf-8";
 
       if (format === "csv") {
-        content = "Немецкий;Перевод;Множественное число;Женский род;Категория\n";
+        content = "Немецкий;Перевод;Множественное число;Женский род;Множественное число (ж.р.);Категория\n";
         wordsToExport.forEach((w) => {
           const catName = w.category?.name || "";
-          content += `"${(w.de || "").replace(/"/g, '""')}";"${(w.ru || "").replace(/"/g, '""')}";"${(w.plural || "").replace(/"/g, '""')}";"${(w.feminine || "").replace(/"/g, '""')}";"${catName.replace(/"/g, '""')}"\n`;
+          content += `"${(w.de || "").replace(/"/g, '""')}";"${(w.ru || "").replace(/"/g, '""')}";"${(w.plural || "").replace(/"/g, '""')}";"${(w.feminine || "").replace(/"/g, '""')}";"${(w.femininePlural || "").replace(/"/g, '""')}";"${catName.replace(/"/g, '""')}"\n`;
         });
         filename += ".csv";
         mimeType = "text/csv;charset=utf-8";
@@ -1079,8 +1090,11 @@
         mimeType = "application/json;charset=utf-8";
       } else if (format === "anki") {
         wordsToExport.forEach((w) => {
-          const front = escapeHtml(w.de) + (w.plural ? `<br><small>мн.ч: ${escapeHtml(w.plural)}</small>` : "");
-          const back = escapeHtml(w.ru) + (w.feminine ? `<br><small>ж.р: ${escapeHtml(w.feminine)}</small>` : "");
+          let front = escapeHtml(w.de);
+          if (w.plural) front += `<br><small>мн.ч: ${escapeHtml(w.plural)}</small>`;
+          let back = escapeHtml(w.ru);
+          if (w.feminine) back += `<br><small>ж.р: ${escapeHtml(w.feminine)}</small>`;
+          if (w.femininePlural) back += `<br><small>мн.ж: ${escapeHtml(w.femininePlural)}</small>`;
           const cat = w.category?.name || "Deutsch";
           content += `${front}\t${back}\t${cat}\n`;
         });
@@ -1137,6 +1151,7 @@
               ru: item.ru.trim(),
               plural: item.plural?.trim() || null,
               feminine: item.feminine?.trim() || null,
+              femininePlural: (item.femininePlural || item.feminine_plural)?.trim() || null,
               categoryName: item.category?.name || item.categoryName || null
             });
           }
@@ -1160,12 +1175,25 @@
 
         const parts = l.split(delimiter).map((p) => p.replace(/^["']|["']$/g, "").trim());
         if (parts.length >= 2 && parts[0] && parts[1]) {
+          // Check if 5th is femininePlural or category
+          let plural = parts[2] || null;
+          let feminine = parts[3] || null;
+          let femininePlural = null;
+          let categoryName = null;
+          if (parts.length >= 6) {
+            femininePlural = parts[4] || null;
+            categoryName = parts[5] || null;
+          } else if (parts.length === 5) {
+            categoryName = parts[4] || null;
+          }
+
           parsedImportWords.push({
             de: parts[0],
             ru: parts[1],
-            plural: parts[2] || null,
-            feminine: parts[3] || null,
-            categoryName: parts[4] || null
+            plural,
+            feminine,
+            femininePlural,
+            categoryName
           });
         }
       });
@@ -1182,10 +1210,15 @@
     importPreviewTbody.innerHTML = "";
     parsedImportWords.slice(0, 5).forEach((w) => {
       const tr = document.createElement("tr");
+      let details = [];
+      if (w.plural) details.push(`мн: ${escapeHtml(w.plural)}`);
+      if (w.feminine) details.push(`ж: ${escapeHtml(w.feminine)}`);
+      if (w.femininePlural) details.push(`мн.ж: ${escapeHtml(w.femininePlural)}`);
+
       tr.innerHTML = `
         <td style="padding: 4px 6px; font-weight: 600;">${escapeHtml(w.de)}</td>
         <td style="padding: 4px 6px;">${escapeHtml(w.ru)}</td>
-        <td style="padding: 4px 6px; color: var(--text-muted);">${w.plural ? `мн: ${escapeHtml(w.plural)}` : ""}</td>
+        <td style="padding: 4px 6px; color: var(--text-muted); font-size: 11px;">${details.join(", ")}</td>
       `;
       importPreviewTbody.appendChild(tr);
     });
@@ -1227,7 +1260,8 @@
           de: w.de,
           ru: w.ru,
           plural: w.plural,
-          feminine: w.feminine
+          feminine: w.feminine,
+          femininePlural: w.femininePlural
         });
         addedCount++;
       }

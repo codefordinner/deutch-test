@@ -137,6 +137,8 @@
             delete store[w.id + "_ru2de"];
             delete store[w.id + "_ru2de_sg"];
             delete store[w.id + "_ru2de_pl"];
+            delete store[w.id + "_ru2de_fem"];
+            delete store[w.id + "_ru2de_fem_pl"];
           });
         }
       });
@@ -292,7 +294,7 @@
         });
       }
       if (dirs.indexOf("ru2de") !== -1) {
-        // Singular card (одинина / единственное число)
+        // Singular card (единственное число)
         cards.push({
           word: w,
           dir: "ru2de",
@@ -310,6 +312,26 @@
             srs: getWordSRS(w.id, "ru2de_pl")
           });
         }
+        // Feminine card (женский род, если указан)
+        if (w.feminine && w.feminine.trim()) {
+          cards.push({
+            word: w,
+            dir: "ru2de",
+            formTarget: "feminine",
+            srsSubKey: "ru2de_fem",
+            srs: getWordSRS(w.id, "ru2de_fem")
+          });
+        }
+        // Feminine Plural card (множественное число женского рода, если указано)
+        if (w.femininePlural && w.femininePlural.trim()) {
+          cards.push({
+            word: w,
+            dir: "ru2de",
+            formTarget: "femininePlural",
+            srsSubKey: "ru2de_fem_pl",
+            srs: getWordSRS(w.id, "ru2de_fem_pl")
+          });
+        }
       }
     });
 
@@ -325,7 +347,7 @@
     function calculateCardWeight(c) {
       var box = Math.min(5, Math.max(1, c.srs.box || 1));
       var srsWeight = getSRSBaseWeight(box);
-      var wid = c.formTarget === "plural" ? c.word.id + "_pl" : c.word.id;
+      var wid = c.formTarget === "singular" ? c.word.id : (c.word.id + "_" + c.formTarget);
       var mistakes = mistakeWeights[wid] || mistakeWeights[c.word.id] || 0;
       var mistakeMultiplier = 1 + (mistakes * 2);
       return srsWeight * mistakeMultiplier;
@@ -425,20 +447,42 @@
         wordObj = QuizEngine.weightedPick(pool, wordId, QuizEngine.getWeights("word"), lastWordId);
         dir = dirs[Math.floor(Math.random() * dirs.length)];
         if (dir === "ru2de") {
-          formTarget = (wordObj.plural && wordObj.plural.trim() && Math.random() < 0.5) ? "plural" : "singular";
+          var availForms = ["singular"];
+          if (wordObj.plural && wordObj.plural.trim()) availForms.push("plural");
+          if (wordObj.feminine && wordObj.feminine.trim()) availForms.push("feminine");
+          if (wordObj.femininePlural && wordObj.femininePlural.trim()) availForms.push("femininePlural");
+          formTarget = availForms[Math.floor(Math.random() * availForms.length)];
         } else {
           formTarget = "base";
         }
-        srsSubKey = dir === "ru2de" ? (formTarget === "plural" ? "ru2de_pl" : "ru2de_sg") : "de2ru";
+        if (dir === "ru2de") {
+          if (formTarget === "plural") srsSubKey = "ru2de_pl";
+          else if (formTarget === "feminine") srsSubKey = "ru2de_fem";
+          else if (formTarget === "femininePlural") srsSubKey = "ru2de_fem_pl";
+          else srsSubKey = "ru2de_sg";
+        } else {
+          srsSubKey = "de2ru";
+        }
       } else {
         wordObj = pickWordPlain(pool, lastWordId);
         dir = dirs[Math.floor(Math.random() * dirs.length)];
         if (dir === "ru2de") {
-          formTarget = (wordObj.plural && wordObj.plural.trim() && Math.random() < 0.5) ? "plural" : "singular";
+          var availFormsPlain = ["singular"];
+          if (wordObj.plural && wordObj.plural.trim()) availFormsPlain.push("plural");
+          if (wordObj.feminine && wordObj.feminine.trim()) availFormsPlain.push("feminine");
+          if (wordObj.femininePlural && wordObj.femininePlural.trim()) availFormsPlain.push("femininePlural");
+          formTarget = availFormsPlain[Math.floor(Math.random() * availFormsPlain.length)];
         } else {
           formTarget = "base";
         }
-        srsSubKey = dir === "ru2de" ? (formTarget === "plural" ? "ru2de_pl" : "ru2de_sg") : "de2ru";
+        if (dir === "ru2de") {
+          if (formTarget === "plural") srsSubKey = "ru2de_pl";
+          else if (formTarget === "feminine") srsSubKey = "ru2de_fem";
+          else if (formTarget === "femininePlural") srsSubKey = "ru2de_fem_pl";
+          else srsSubKey = "ru2de_sg";
+        } else {
+          srsSubKey = "de2ru";
+        }
       }
 
       return { word: wordObj, dir: dir, formTarget: formTarget, srsSubKey: srsSubKey, isSRS: isSRS };
@@ -457,13 +501,16 @@
       if (current.dir === "de2ru") {
         elements.modeEl.innerHTML = "Немецкий → русский" + srsBadge;
         var qHtml = QuizEngine.formatGermanGender(current.word.de);
-        if (current.word.plural || current.word.feminine) {
+        if (current.word.plural || current.word.feminine || current.word.femininePlural) {
           qHtml += '<div class="question-forms">';
           if (current.word.plural) {
             qHtml += '<span class="form-badge plural-badge" title="Множественное число">мн. ч.: ' + QuizEngine.formatGermanGender(current.word.plural) + '</span>';
           }
           if (current.word.feminine) {
             qHtml += '<span class="form-badge fem-badge" title="Женский род">ж. р.: ' + QuizEngine.formatGermanGender(current.word.feminine) + '</span>';
+          }
+          if (current.word.femininePlural) {
+            qHtml += '<span class="form-badge fem-plural-badge" title="Множественное число (ж.р.)">мн. ж. р.: ' + QuizEngine.formatGermanGender(current.word.femininePlural) + '</span>';
           }
           qHtml += '</div>';
         }
@@ -478,9 +525,19 @@
             '👉 Введите форму <b>множественного числа</b>' +
             '</div>';
           placeholder = "Множественное число";
-        } else if (current.word.plural && current.word.plural.trim()) {
+        } else if (current.formTarget === "feminine") {
+          instructionHtml = '<div class="form-instruction fem-instruction">' +
+            '👉 Введите форму <b>женского рода</b> (ед.ч.)' +
+            '</div>';
+          placeholder = "Женский род (ед.ч.)";
+        } else if (current.formTarget === "femininePlural") {
+          instructionHtml = '<div class="form-instruction fem-plural-instruction">' +
+            '👉 Введите форму <b>женского рода во множественном числе</b>' +
+            '</div>';
+          placeholder = "Множественное число (ж.р.)";
+        } else if (current.word.plural || current.word.feminine || current.word.femininePlural) {
           instructionHtml = '<div class="form-instruction singular-instruction">' +
-            '👉 Введите форму <b>единственного числа</b>' +
+            '👉 Введите форму <b>единственного числа</b> (основную форму)' +
             '</div>';
           placeholder = "Единственное число";
         }
@@ -505,31 +562,45 @@
           isCorrect = matchesAnyAlternative(userVal, current.word.plural);
           if (!isCorrect && matchesAnyAlternative(userVal, current.word.de)) {
             extraFeedback = "💡 Вы ввели единственное число (<b>" + current.word.de + "</b>), а требовалось множественное: <b>" + current.word.plural + "</b>";
+          } else if (!isCorrect && current.word.femininePlural && matchesAnyAlternative(userVal, current.word.femininePlural)) {
+            extraFeedback = "💡 Вы ввели форму ж.р. во мн.ч. (<b>" + current.word.femininePlural + "</b>), а требовалось общее мн.ч.: <b>" + current.word.plural + "</b>";
+          }
+        } else if (current.formTarget === "feminine") {
+          correctText = current.word.feminine;
+          isCorrect = matchesAnyAlternative(userVal, current.word.feminine);
+          if (!isCorrect && matchesAnyAlternative(userVal, current.word.de)) {
+            extraFeedback = "💡 Вы ввели мужской/общий род (<b>" + current.word.de + "</b>), а требовался женский род: <b>" + current.word.feminine + "</b>";
+          } else if (!isCorrect && current.word.femininePlural && matchesAnyAlternative(userVal, current.word.femininePlural)) {
+            extraFeedback = "💡 Вы ввели форму мн.ч. ж.р. (<b>" + current.word.femininePlural + "</b>), а требовался ед.ч. женского рода: <b>" + current.word.feminine + "</b>";
+          }
+        } else if (current.formTarget === "femininePlural") {
+          correctText = current.word.femininePlural;
+          isCorrect = matchesAnyAlternative(userVal, current.word.femininePlural);
+          if (!isCorrect && current.word.feminine && matchesAnyAlternative(userVal, current.word.feminine)) {
+            extraFeedback = "💡 Вы ввели ед.ч. женского рода (<b>" + current.word.feminine + "</b>), а требовалось мн. число женского рода: <b>" + current.word.femininePlural + "</b>";
+          } else if (!isCorrect && current.word.plural && matchesAnyAlternative(userVal, current.word.plural)) {
+            extraFeedback = "💡 Вы ввели общее мн. число (<b>" + current.word.plural + "</b>), а требовалось мн. число женского рода: <b>" + current.word.femininePlural + "</b>";
           }
         } else {
           correctText = current.word.de;
           isCorrect = matchesAnyAlternative(userVal, current.word.de);
           if (!isCorrect && current.word.plural && matchesAnyAlternative(userVal, current.word.plural)) {
             extraFeedback = "💡 Вы ввели множественное число (<b>" + current.word.plural + "</b>), а требовалось единственное: <b>" + current.word.de + "</b>";
+          } else if (!isCorrect && current.word.feminine && matchesAnyAlternative(userVal, current.word.feminine)) {
+            extraFeedback = "💡 Вы ввели женский род (<b>" + current.word.feminine + "</b>), а требовалась основная форма: <b>" + current.word.de + "</b>";
           }
         }
       }
 
+      var formsList = [];
+      if (current.formTarget !== "singular" && current.word.de) formsList.push("ед: " + current.word.de);
+      if (current.formTarget !== "plural" && current.word.plural) formsList.push("мн: " + current.word.plural);
+      if (current.formTarget !== "feminine" && current.word.feminine) formsList.push("ж: " + current.word.feminine);
+      if (current.formTarget !== "femininePlural" && current.word.femininePlural) formsList.push("мн.ж: " + current.word.femininePlural);
+
       var extraNote = "";
-      if (current.dir === "ru2de") {
-        if (current.formTarget === "plural") {
-          extraNote = " (ед. ч.: " + current.word.de + ")";
-        } else if (current.word.plural || current.word.feminine) {
-          var forms = [];
-          if (current.word.plural) forms.push("мн: " + current.word.plural);
-          if (current.word.feminine) forms.push("ж: " + current.word.feminine);
-          extraNote = " (" + forms.join(", ") + ")";
-        }
-      } else if (current.word.plural || current.word.feminine) {
-        var formsAll = [];
-        if (current.word.plural) formsAll.push("мн: " + current.word.plural);
-        if (current.word.feminine) formsAll.push("ж: " + current.word.feminine);
-        extraNote = " (" + formsAll.join(", ") + ")";
+      if (formsList.length > 0) {
+        extraNote = " (" + formsList.join(", ") + ")";
       }
 
       var srsInfo = null;
@@ -547,8 +618,8 @@
     },
 
     weightId: function (current) {
-      if (current.dir === "ru2de" && current.formTarget === "plural") {
-        return current.word.id + "_pl";
+      if (current.dir === "ru2de") {
+        return current.formTarget === "singular" ? current.word.id : (current.word.id + "_" + current.formTarget);
       }
       return current.word.id;
     },
@@ -604,6 +675,12 @@
         var subKeys = ["de2ru", "ru2de_sg"];
         if (w.plural && w.plural.trim()) {
           subKeys.push("ru2de_pl");
+        }
+        if (w.feminine && w.feminine.trim()) {
+          subKeys.push("ru2de_fem");
+        }
+        if (w.femininePlural && w.femininePlural.trim()) {
+          subKeys.push("ru2de_fem_pl");
         }
         totalCards += subKeys.length;
 
@@ -740,21 +817,32 @@
         var ruMatch = w.ru.toLowerCase().indexOf(searchQuery) !== -1;
         var plMatch = w.plural && w.plural.toLowerCase().indexOf(searchQuery) !== -1;
         var femMatch = w.feminine && w.feminine.toLowerCase().indexOf(searchQuery) !== -1;
-        if (searchQuery && !deMatch && !ruMatch && !plMatch && !femMatch) return;
+        var femPlMatch = w.femininePlural && w.femininePlural.toLowerCase().indexOf(searchQuery) !== -1;
+        if (searchQuery && !deMatch && !ruMatch && !plMatch && !femMatch && !femPlMatch) return;
 
         // Get SRS levels for all directions
         var srsDe2Ru = getWordSRS(w.id, "de2ru");
         var srsRu2DeSg = getWordSRS(w.id, "ru2de_sg");
         var srsRu2DePl = (w.plural && w.plural.trim()) ? getWordSRS(w.id, "ru2de_pl") : null;
+        var srsRu2DeFem = (w.feminine && w.feminine.trim()) ? getWordSRS(w.id, "ru2de_fem") : null;
+        var srsRu2DeFemPl = (w.femininePlural && w.femininePlural.trim()) ? getWordSRS(w.id, "ru2de_fem_pl") : null;
 
         var lvlDe2Ru = Math.min(5, Math.max(1, srsDe2Ru.box || 1));
         var lvlRu2DeSg = Math.min(5, Math.max(1, srsRu2DeSg.box || 1));
         var lvlRu2DePl = srsRu2DePl ? Math.min(5, Math.max(1, srsRu2DePl.box || 1)) : null;
+        var lvlRu2DeFem = srsRu2DeFem ? Math.min(5, Math.max(1, srsRu2DeFem.box || 1)) : null;
+        var lvlRu2DeFemPl = srsRu2DeFemPl ? Math.min(5, Math.max(1, srsRu2DeFemPl.box || 1)) : null;
 
         // Filter by SRS level if selected
         if (selectedLevel !== "__ALL__") {
           var targetLvl = parseInt(selectedLevel, 10);
-          var matchesLvl = (lvlDe2Ru === targetLvl || lvlRu2DeSg === targetLvl || (lvlRu2DePl !== null && lvlRu2DePl === targetLvl));
+          var matchesLvl = (
+            lvlDe2Ru === targetLvl ||
+            lvlRu2DeSg === targetLvl ||
+            (lvlRu2DePl !== null && lvlRu2DePl === targetLvl) ||
+            (lvlRu2DeFem !== null && lvlRu2DeFem === targetLvl) ||
+            (lvlRu2DeFemPl !== null && lvlRu2DeFemPl === targetLvl)
+          );
           if (!matchesLvl) return;
         }
 
@@ -763,7 +851,9 @@
           categoryName: cat.name,
           lvlDe2Ru: lvlDe2Ru,
           lvlRu2DeSg: lvlRu2DeSg,
-          lvlRu2DePl: lvlRu2DePl
+          lvlRu2DePl: lvlRu2DePl,
+          lvlRu2DeFem: lvlRu2DeFem,
+          lvlRu2DeFemPl: lvlRu2DeFemPl
         });
       });
     });
@@ -788,7 +878,7 @@
     var html = "";
     filteredList.forEach(function (item) {
       var formattedDe = '<div style="font-weight: 500;">' + QuizEngine.formatGermanGender(item.word.de) + '</div>';
-      if (item.word.plural || item.word.feminine) {
+      if (item.word.plural || item.word.feminine || item.word.femininePlural) {
         formattedDe += '<div class="word-extra-forms">';
         if (item.word.plural) {
           formattedDe += '<span class="form-badge plural-badge" title="Множественное число">мн: ' + QuizEngine.formatGermanGender(item.word.plural) + '</span>';
@@ -796,14 +886,26 @@
         if (item.word.feminine) {
           formattedDe += '<span class="form-badge fem-badge" title="Женский род">ж: ' + QuizEngine.formatGermanGender(item.word.feminine) + '</span>';
         }
+        if (item.word.femininePlural) {
+          formattedDe += '<span class="form-badge fem-plural-badge" title="Множественное число (ж.р.)">мн.ж: ' + QuizEngine.formatGermanGender(item.word.femininePlural) + '</span>';
+        }
         formattedDe += '</div>';
       }
 
-      var srsHtml = '<span title="Немецкий → Русский">' + levelBadges[item.lvlDe2Ru] + ' (DE)</span> / ' +
-                    '<span title="Русский → Немецкий (ед. ч.)">' + levelBadges[item.lvlRu2DeSg] + ' (RU ед.)</span>';
+      var srsParts = [
+        '<span title="Немецкий → Русский">' + levelBadges[item.lvlDe2Ru] + ' (DE)</span>',
+        '<span title="Русский → Немецкий (ед. ч.)">' + levelBadges[item.lvlRu2DeSg] + ' (RU ед.)</span>'
+      ];
       if (item.lvlRu2DePl !== null) {
-        srsHtml += ' / <span title="Русский → Немецкий (мн. ч.)">' + levelBadges[item.lvlRu2DePl] + ' (RU мн.)</span>';
+        srsParts.push('<span title="Русский → Немецкий (мн. ч.)">' + levelBadges[item.lvlRu2DePl] + ' (RU мн.)</span>');
       }
+      if (item.lvlRu2DeFem !== null) {
+        srsParts.push('<span title="Русский → Немецкий (ж. р.)">' + levelBadges[item.lvlRu2DeFem] + ' (RU ж.)</span>');
+      }
+      if (item.lvlRu2DeFemPl !== null) {
+        srsParts.push('<span title="Русский → Немецкий (мн. ж. р.)">' + levelBadges[item.lvlRu2DeFemPl] + ' (RU мн.ж.)</span>');
+      }
+      var srsHtml = srsParts.join(' / ');
 
       html += '<tr style="border-bottom: 1px solid var(--border);">';
       html += '  <td style="padding: 10px 12px;">' + formattedDe + '</td>';
@@ -865,6 +967,10 @@
         correctText = current.word.ru;
       } else if (current.formTarget === "plural") {
         correctText = current.word.plural || current.word.de;
+      } else if (current.formTarget === "feminine") {
+        correctText = current.word.feminine || current.word.de;
+      } else if (current.formTarget === "femininePlural") {
+        correctText = current.word.femininePlural || current.word.de;
       } else {
         correctText = current.word.de;
       }
