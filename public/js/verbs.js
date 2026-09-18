@@ -1,17 +1,17 @@
 /**
  * German Verbs Trainer Module: Present Tense Conjugation (Präsens)
- * with Leitner Spaced Repetition (SRS)
- * Covers: ich, du, er/sie/es, wir, ihr, sie/Sie for Irregular and Regular Verbs
+ * with Per-Form Leitner Spaced Repetition (SRS)
+ * Every pronoun form (ich, du, er, wir, ihr, sie) is tracked as an individual Leitner cell!
  */
 (function () {
   // Storage Keys
   var VERB_TYPE_KEY = "german-trainer-verb-type-v2";       // 'irregular' | 'regular' | 'all'
   var VERB_MODE_KEY = "german-trainer-verb-mode-v2";       // 'input' | 'choice'
-  var VERB_SRS_KEY = "german-trainer-verb-srs-v2";         // Leitner state store
+  var VERB_SRS_KEY = "german-trainer-verb-srs-v2";         // Leitner state store per form
   var VERB_SRS_ENABLED_KEY = "german-trainer-verb-srs-on-v2";
-  var VERB_STATS_DISABLED_KEY = "german-trainer-verb-no-stats-v2";
+  var VERB_STATS_KEY = "german-trainer-stats-verb-v2";
 
-  // Pronoun definitions
+  // Pronoun definitions (all 6 forms)
   var PRONOUNS = [
     { key: "ich", de: "ich", ru: "я" },
     { key: "du", de: "du", ru: "ты", highlight: true },
@@ -31,11 +31,11 @@
   };
 
   var LEVEL_BADGES = {
-    1: { name: "🌱 Уровень 1 (сегодня)", cls: "box-1" },
-    2: { name: "🌿 Уровень 2 (1 день)", cls: "box-2" },
-    3: { name: "🌳 Уровень 3 (3 дня)", cls: "box-3" },
-    4: { name: "🌲 Уровень 4 (7 дней)", cls: "box-4" },
-    5: { name: "🏆 Уровень 5 (выучено)", cls: "box-5" }
+    1: { name: "🌱 Уровень 1 (сегодня)", shortName: "Ур. 1", cls: "box-1" },
+    2: { name: "🌿 Уровень 2 (1 день)", shortName: "Ур. 2", cls: "box-2" },
+    3: { name: "🌳 Уровень 3 (3 дня)", shortName: "Ур. 3", cls: "box-3" },
+    4: { name: "🌲 Уровень 4 (7 дней)", shortName: "Ур. 4", cls: "box-4" },
+    5: { name: "🏆 Уровень 5 (выучено)", shortName: "Ур. 5", cls: "box-5" }
   };
 
   var DAY_MS = 24 * 60 * 60 * 1000;
@@ -93,6 +93,9 @@
     wissen: {
       forms: { ich: "weiß", du: "weißt", er: "weiß", wir: "wissen", ihr: "wisst", sie: "wissen" },
       vowelChange: "i ➔ ei (ich weiß, du weißt, er weiß)"
+    },
+    bring: {
+      forms: { ich: "bringe", du: "bringst", er: "bringt", wir: "bringen", ihr: "bringt", sie: "bringen" }
     },
     bringen: {
       forms: { ich: "bringe", du: "bringst", er: "bringt", wir: "bringen", ihr: "bringt", sie: "bringen" }
@@ -196,10 +199,7 @@
       stem = stem.slice(0, -1);
     }
 
-    // Special ending rules:
-    // Stems ending in -t, -d, or consonant + -n/-m (arbeiten, antworten, warten, öffnen)
     var needsE = /[td]$/.test(stem) || /[^aeiou][nm]$/.test(stem);
-    // Stems ending in -s, -ss, -ß, -z, -tz (tanzen, reisen, putzen) take only -t in du form
     var sEnding = /[sßzx]$/.test(stem);
 
     return {
@@ -212,35 +212,16 @@
     };
   }
 
-  /**
-   * Get all 6 Präsens forms for any verb (checking irregular table first, then regular rules)
-   */
-  function getConjugation(infinitive) {
-    var key = (infinitive || "").trim().toLowerCase();
-    if (IRREGULAR_CONJUGATIONS[key]) {
-      return {
-        forms: IRREGULAR_CONJUGATIONS[key].forms,
-        vowelChange: IRREGULAR_CONJUGATIONS[key].vowelChange || null,
-        isIrregular: true
-      };
-    }
-    return {
-      forms: conjugateRegular(key),
-      vowelChange: null,
-      isIrregular: false
-    };
-  }
-
   // State
   var allVerbs = [];
   var irregularVerbs = [];
   var regularVerbs = [];
   var activePool = [];
-  var currentVerb = null;
-  var currentPronoun = null; // one of PRONOUNS
-  var currentCorrectAnswer = "";
-  var lastVerbId = null;
+
+  var currentUnit = null; // { verb, pronoun, formKey, correctAnswer }
+  var lastUnitKey = null; // 'verb_sprechen_du'
   var isAnswerChecked = false;
+  var lastResult = null;  // { isCorrect, pronounDe, pronounRu, correctAnswer, userAnswer, verbDe, srsInfo }
 
   var currentVerbType = "irregular"; // 'irregular' | 'regular' | 'all'
   var currentMode = "input";          // 'input' | 'choice'
@@ -317,7 +298,7 @@
     dom.countAll = document.getElementById("verb-count-all");
   }
 
-  // ==================== SRS STORAGE ENGINE ====================
+  // ==================== PER-FORM SRS STORAGE ENGINE ====================
 
   function getSrsStore() {
     try {
@@ -334,45 +315,77 @@
     } catch (e) {}
   }
 
-  function getVerbSrs(verbId) {
-    if (!verbId) return { box: 1, nextReview: 0, reviews: 0, mistakes: 0 };
-    var store = getSrsStore();
-    return store[verbId] || { box: 1, nextReview: 0, reviews: 0, mistakes: 0 };
+  function getFormKey(verbId, pronounKey) {
+    return (verbId || "") + "_" + (pronounKey || "");
   }
 
-  function updateVerbSrs(verbId, isCorrect) {
-    if (!verbId || !srsEnabled) return;
+  function getFormSrs(verbId, pronounKey) {
+    if (!verbId || !pronounKey) {
+      return { box: 1, nextReview: 0, reviews: 0, mistakes: 0, lastReviewed: 0 };
+    }
     var store = getSrsStore();
-    var record = store[verbId] || { box: 1, nextReview: 0, reviews: 0, mistakes: 0 };
+    var key = getFormKey(verbId, pronounKey);
+    var record = store[key];
 
-    record.reviews = (record.reviews || 0) + 1;
-
-    if (isCorrect) {
-      var nextBox = Math.min(5, (record.box || 1) + 1);
-      record.box = nextBox;
-      var intervalDays = LEVEL_INTERVALS[nextBox];
-      record.nextReview = Date.now() + intervalDays * DAY_MS;
-    } else {
-      record.box = 1; // back to Level 1
-      record.mistakes = (record.mistakes || 0) + 1;
-      record.nextReview = Date.now(); // due immediately today
+    // Graceful fallback if legacy single-verb record exists
+    if (!record && store[verbId] && typeof store[verbId].box === "number") {
+      record = {
+        box: store[verbId].box || 1,
+        nextReview: store[verbId].nextReview || 0,
+        reviews: 0,
+        mistakes: 0,
+        lastReviewed: 0
+      };
     }
 
-    store[verbId] = record;
-    saveSrsStore(store);
-    updateSrsBadge(record.box);
+    return record || { box: 1, nextReview: 0, reviews: 0, mistakes: 0, lastReviewed: 0 };
   }
 
-  function updateSrsBadge(box) {
+  function updateFormSrs(verbId, pronounKey, isCorrect) {
+    if (!verbId || !pronounKey || !srsEnabled) return null;
+    var store = getSrsStore();
+    var key = getFormKey(verbId, pronounKey);
+    var record = getFormSrs(verbId, pronounKey);
+
+    var now = Date.now();
+    var oldBox = record.box || 1;
+    var newBox = oldBox;
+    record.reviews = (record.reviews || 0) + 1;
+    record.lastReviewed = now;
+
+    if (isCorrect) {
+      newBox = Math.min(5, oldBox + 1);
+      record.box = newBox;
+      var intervalDays = LEVEL_INTERVALS[newBox];
+      record.nextReview = now + intervalDays * DAY_MS;
+    } else {
+      newBox = 1;
+      record.box = 1;
+      record.mistakes = (record.mistakes || 0) + 1;
+      record.nextReview = now; // due immediately today
+    }
+
+    store[key] = record;
+    saveSrsStore(store);
+
+    return {
+      oldBox: oldBox,
+      newBox: newBox,
+      levelName: LEVEL_BADGES[newBox].name,
+      intervalDays: LEVEL_INTERVALS[newBox]
+    };
+  }
+
+  function updateSrsBadge(pronounDe, box) {
     if (!dom.srsBadge) return;
     var b = box || 1;
     var info = LEVEL_BADGES[b] || LEVEL_BADGES[1];
     dom.srsBadge.className = "srs-box-badge " + info.cls;
-    dom.srsBadge.textContent = info.name;
+    dom.srsBadge.textContent = info.name.replace(")", ": " + (pronounDe || "") + ")");
     dom.srsBadge.style.display = srsEnabled ? "inline-flex" : "none";
   }
 
-  // ==================== VERBS DATA FETCHING ====================
+  // ==================== VERBS DATA FETCHING & CLASSIFICATION ====================
 
   async function loadVerbs() {
     try {
@@ -380,13 +393,13 @@
       classifyVerbs(words);
       applyVerbTypeFilter(currentVerbType);
       renderCheatsheet();
-      nextQuestion();
+      nextQuestion(true);
     } catch (err) {
       console.error("Could not fetch verbs from API:", err);
       classifyVerbs([]);
       applyVerbTypeFilter(currentVerbType);
       renderCheatsheet();
-      nextQuestion();
+      nextQuestion(true);
     }
   }
 
@@ -414,7 +427,6 @@
 
       if (!isVerb) return;
 
-      // Deduplicate by German infinitive, preferring entries with forms
       if (seen.has(deLower)) {
         var prev = seen.get(deLower);
         if (!prev.praeteritum && w.praeteritum) {
@@ -437,7 +449,6 @@
         Boolean(IRREGULAR_CONJUGATIONS[deLower])
       );
 
-      // Build 6 Präsens forms
       var forms;
       var vowelChange = null;
 
@@ -449,7 +460,6 @@
         forms = conjugateRegular(deLower);
       }
 
-      // If DB has explicit praesens, apply to er
       if (w.praesens) {
         var cleanP3 = w.praesens.replace(/^(er|sie|es)\s+/i, "").trim();
         if (cleanP3) {
@@ -481,7 +491,6 @@
       }
     });
 
-    // Update dynamic count badges in settings modal
     if (dom.countIrreg) dom.countIrreg.textContent = irregularVerbs.length;
     if (dom.countReg) dom.countReg.textContent = regularVerbs.length;
     if (dom.countAll) dom.countAll.textContent = allVerbs.length;
@@ -520,11 +529,9 @@
       localStorage.setItem(VERB_MODE_KEY, mode);
     } catch (e) {}
 
-    // Update UI panels visibility based on mode
     if (dom.inputContainer) dom.inputContainer.style.display = mode === "input" ? "flex" : "none";
     if (dom.choiceContainer) dom.choiceContainer.style.display = mode === "choice" ? "grid" : "none";
 
-    // Toggle bottom buttons & umlauts
     if (dom.quizButtons) dom.quizButtons.style.display = "flex";
     if (dom.umlautsBar) dom.umlautsBar.style.display = mode === "input" ? "flex" : "none";
     if (dom.hintBtn) dom.hintBtn.style.display = mode === "input" ? "inline-block" : "none";
@@ -535,80 +542,144 @@
       else dom.qmode.textContent = "Тест: выберите правильную форму";
     }
 
-    // Sync toolbar pills
     if (dom.modePills) {
       dom.modePills.querySelectorAll(".verb-pill-btn").forEach(function (btn) {
         btn.classList.toggle("active", btn.dataset.verbMode === mode);
       });
     }
 
-    // Sync radio in settings modal
     var radio = document.querySelector('input[name="verb-mode-radio"][value="' + mode + '"]');
     if (radio) radio.checked = true;
   }
 
-  // ==================== PICKING NEXT QUESTION (SRS PRIORITY) ====================
+  // ==================== PICKING NEXT QUESTION (PER-FORM SRS) ====================
 
-  function pickNextVerb() {
-    if (!activePool || activePool.length === 0) return null;
+  function getAllActiveUnits() {
+    var units = [];
+    (activePool || []).forEach(function (verb) {
+      var forms = verb.conjugation.forms;
+      PRONOUNS.forEach(function (pronoun) {
+        var ans = forms[pronoun.key];
+        if (ans) {
+          units.push({
+            verb: verb,
+            pronoun: pronoun,
+            formKey: getFormKey(verb.id, pronoun.key),
+            correctAnswer: (ans || "").trim()
+          });
+        }
+      });
+    });
+    return units;
+  }
+
+  function pickNextUnit() {
+    var allUnits = getAllActiveUnits();
+    if (allUnits.length === 0) return null;
+
+    var now = Date.now();
 
     if (srsEnabled) {
-      var now = Date.now();
-      var dueVerbs = [];
-      var otherVerbs = [];
-
-      activePool.forEach(function (v) {
-        if (v.id === lastVerbId && activePool.length > 1) return;
-        var srs = getVerbSrs(v.id);
+      var dueUnits = [];
+      allUnits.forEach(function (u) {
+        if (lastUnitKey && u.formKey === lastUnitKey && allUnits.length > 1) return;
+        var srs = getFormSrs(u.verb.id, u.pronoun.key);
         if (srs.nextReview <= now) {
-          dueVerbs.push(v);
-        } else {
-          otherVerbs.push(v);
+          dueUnits.push(u);
         }
       });
 
-      if (dueVerbs.length > 0) {
-        return dueVerbs[Math.floor(Math.random() * dueVerbs.length)];
+      if (dueUnits.length > 0) {
+        return dueUnits[Math.floor(Math.random() * dueUnits.length)];
       }
+
+      // If no forms are strictly due today, pick weighted by box level (Box 1 is most frequent)
+      var candidates = allUnits.filter(function (u) {
+        return allUnits.length === 1 || u.formKey !== lastUnitKey;
+      });
+      var poolToPick = candidates.length > 0 ? candidates : allUnits;
+
+      var weighted = poolToPick.map(function (u) {
+        var srs = getFormSrs(u.verb.id, u.pronoun.key);
+        var box = srs.box || 1;
+        var weight = Math.pow(6 - box, 2); // Box 1 = 25, Box 2 = 16, Box 3 = 9, Box 4 = 4, Box 5 = 1
+        return { unit: u, weight: weight };
+      });
+
+      var totalWeight = weighted.reduce(function (sum, item) { return sum + item.weight; }, 0);
+      var r = Math.random() * totalWeight;
+      for (var i = 0; i < weighted.length; i++) {
+        r -= weighted[i].weight;
+        if (r <= 0) return weighted[i].unit;
+      }
+      return poolToPick[Math.floor(Math.random() * poolToPick.length)];
     }
 
-    var filtered = activePool.filter(function (v) {
-      return activePool.length === 1 || v.id !== lastVerbId;
+    var nonLast = allUnits.filter(function (u) {
+      return allUnits.length === 1 || u.formKey !== lastUnitKey;
     });
-    return filtered[Math.floor(Math.random() * filtered.length)] || activePool[0];
+    return nonLast[Math.floor(Math.random() * nonLast.length)] || allUnits[0];
   }
 
-  function pickPronoun() {
-    // Random pronoun from all 6 present tense forms: ich, du, er/sie/es, wir, ihr, sie/Sie
-    return PRONOUNS[Math.floor(Math.random() * PRONOUNS.length)];
+  // ==================== RENDERING PREVIOUS RESULT ====================
+
+  function renderPrevResult() {
+    if (!dom.prevResult) return;
+    if (!lastResult) {
+      dom.prevResult.innerHTML = "";
+      return;
+    }
+
+    var targetText = lastResult.pronounDe + " " + lastResult.correctAnswer;
+    var verbNote = "(" + lastResult.verbDe + (lastResult.ru ? " — " + lastResult.ru : "") + ")";
+
+    if (lastResult.isCorrect) {
+      dom.prevResult.innerHTML = "Прошлый ответ верный: <b>" + targetText + "</b> " + verbNote;
+      dom.prevResult.style.color = "var(--success)";
+    } else {
+      var userGiven = lastResult.userAnswer ? ' (вы ввели: "' + lastResult.userAnswer + '")' : "";
+      dom.prevResult.innerHTML = "Прошлый ответ неверный. Правильно: <b>" + targetText + "</b>" + userGiven + " " + verbNote;
+      dom.prevResult.style.color = "var(--danger)";
+    }
   }
 
-  function nextQuestion() {
+  // ==================== ADVANCING & SETUP QUESTION ====================
+
+  function nextQuestion(skipEvaluation) {
     if (!activePool || activePool.length === 0) return;
 
+    // 1. If moving to next question without having checked the current one, evaluate it first!
+    if (!skipEvaluation && !isAnswerChecked && currentUnit) {
+      evaluateCurrentSilently();
+    }
+
+    // 2. Render previous result at the top of the card
+    if (!skipEvaluation) {
+      renderPrevResult();
+    }
+
     isAnswerChecked = false;
-    currentVerb = pickNextVerb();
-    if (!currentVerb) return;
-    lastVerbId = currentVerb.id;
+    currentUnit = pickNextUnit();
+    if (!currentUnit) return;
+    lastUnitKey = currentUnit.formKey;
 
-    currentPronoun = pickPronoun();
-    var forms = currentVerb.conjugation.forms;
-    currentCorrectAnswer = (forms[currentPronoun.key] || "").trim();
+    var verb = currentUnit.verb;
+    var pronoun = currentUnit.pronoun;
 
-    // Update SRS Badge
-    var srs = getVerbSrs(currentVerb.id);
-    updateSrsBadge(srs.box);
+    // Update SRS Badge for this specific form
+    var srs = getFormSrs(verb.id, pronoun.key);
+    updateSrsBadge(pronoun.de, srs.box);
 
     // Update Question text
-    if (dom.question) dom.question.textContent = currentVerb.de;
-    if (dom.translationHint) dom.translationHint.textContent = currentVerb.ru;
+    if (dom.question) dom.question.textContent = verb.de;
+    if (dom.translationHint) dom.translationHint.textContent = verb.ru;
 
     // Update Pronoun Callout
-    if (dom.pronounDe) dom.pronounDe.textContent = currentPronoun.de;
-    if (dom.pronounRu) dom.pronounRu.textContent = "(" + currentPronoun.ru + ")";
-    if (dom.inputLead) dom.inputLead.textContent = currentPronoun.de;
+    if (dom.pronounDe) dom.pronounDe.textContent = pronoun.de;
+    if (dom.pronounRu) dom.pronounRu.textContent = "(" + pronoun.ru + ")";
+    if (dom.inputLead) dom.inputLead.textContent = pronoun.de;
 
-    // Clear feedback & previous result
+    // Clear feedback
     if (dom.feedback) {
       dom.feedback.textContent = "";
       dom.feedback.className = "feedback";
@@ -636,14 +707,28 @@
   function setupInputMode() {
     if (!dom.answerInput) return;
     dom.answerInput.value = "";
+    dom.answerInput.style.borderColor = "";
     dom.answerInput.placeholder = "";
     setTimeout(function () {
       dom.answerInput.focus();
     }, 50);
   }
 
+  function evaluateCurrentSilently() {
+    if (!currentUnit || isAnswerChecked) return;
+    var rawInput = (dom.answerInput ? dom.answerInput.value : "").trim();
+    if (currentMode === "input" && rawInput) {
+      var cleanInput = rawInput.replace(new RegExp("^" + currentUnit.pronoun.de + "\\s+", "i"), "").trim();
+      var isCorrect = normalize(cleanInput) === normalize(currentUnit.correctAnswer);
+      finishAnswer(isCorrect, cleanInput);
+    } else {
+      // Empty or skipped
+      finishAnswer(false, rawInput || "");
+    }
+  }
+
   function checkInputAnswer() {
-    if (!currentVerb || isAnswerChecked) return;
+    if (!currentUnit || isAnswerChecked) return;
 
     var rawInput = (dom.answerInput ? dom.answerInput.value : "").trim();
     if (!rawInput) {
@@ -652,20 +737,18 @@
       return;
     }
 
-    // Normalize: remove pronoun prefix if user typed "du sprichst" instead of just "sprichst"
-    var cleanInput = rawInput.replace(new RegExp("^" + currentPronoun.de + "\\s+", "i"), "").trim();
-
-    var isCorrect = normalize(cleanInput) === normalize(currentCorrectAnswer);
-    finishAnswer(isCorrect);
+    var cleanInput = rawInput.replace(new RegExp("^" + currentUnit.pronoun.de + "\\s+", "i"), "").trim();
+    var isCorrect = normalize(cleanInput) === normalize(currentUnit.correctAnswer);
+    finishAnswer(isCorrect, cleanInput);
   }
 
-  // ==================== MODE 2: MULTIPLE CHOICE TEST (4 OPTIONS) ====================
+  // ==================== MODE 2: MULTIPLE CHOICE TEST ====================
 
   function setupChoiceMode() {
-    if (!dom.choiceContainer) return;
+    if (!dom.choiceContainer || !currentUnit) return;
     dom.choiceContainer.innerHTML = "";
 
-    var options = generateDistractors(currentVerb, currentPronoun, currentCorrectAnswer);
+    var options = generateDistractors(currentUnit.verb, currentUnit.pronoun, currentUnit.correctAnswer);
 
     options.forEach(function (opt) {
       var btn = document.createElement("button");
@@ -675,18 +758,17 @@
 
       btn.addEventListener("click", function () {
         if (isAnswerChecked) return;
-        var isCorrect = normalize(opt) === normalize(currentCorrectAnswer);
+        var isCorrect = normalize(opt) === normalize(currentUnit.correctAnswer);
 
-        // Highlight buttons
         dom.choiceContainer.querySelectorAll(".conjugation-choice-btn").forEach(function (b) {
-          if (normalize(b.textContent) === normalize(currentCorrectAnswer)) {
+          if (normalize(b.textContent) === normalize(currentUnit.correctAnswer)) {
             b.classList.add("correct");
           } else if (b === btn && !isCorrect) {
             b.classList.add("wrong");
           }
         });
 
-        finishAnswer(isCorrect);
+        finishAnswer(isCorrect, opt);
       });
 
       dom.choiceContainer.appendChild(btn);
@@ -705,7 +787,7 @@
       }
     });
 
-    // 2. Add regularized or modified form if irregular (e.g. sprechst instead of sprichst)
+    // 2. Add regularized/distorted stem variations
     var stem = verb.de.replace(/en$/, "").replace(/n$/, "");
     if (pronoun.key === "du") {
       set.add(stem + "st");
@@ -715,7 +797,7 @@
       set.add(stem + "st");
     }
 
-    // 3. Add forms from other verbs in the active pool
+    // 3. Add forms from other verbs in active pool
     var tries = 0;
     while (set.size < 4 && tries < 30) {
       tries++;
@@ -727,52 +809,74 @@
     }
 
     var list = Array.from(set).slice(0, 4);
-    // Shuffle
     return list.sort(function () { return Math.random() - 0.5; });
   }
 
   // ==================== CHECKING & SCORING ====================
 
-  function finishAnswer(isCorrect) {
+  function finishAnswer(isCorrect, userVal) {
+    if (!currentUnit || isAnswerChecked) return;
     isAnswerChecked = true;
     scores.total++;
+
+    var verb = currentUnit.verb;
+    var pronoun = currentUnit.pronoun;
+    var correctAns = currentUnit.correctAnswer;
+
+    var srsInfo = updateFormSrs(verb.id, pronoun.key, isCorrect);
 
     if (isCorrect) {
       scores.correct++;
       scores.streak++;
       if (scores.streak > scores.bestStreak) scores.bestStreak = scores.streak;
 
-      var vowelNote = currentVerb.conjugation.vowelChange ? " (⚡ " + currentVerb.conjugation.vowelChange + ")" : "";
-      showFeedback("🎉 Отлично! " + currentPronoun.de + " " + currentCorrectAnswer + vowelNote, "correct");
-      if (dom.prevResult) {
-        dom.prevResult.textContent = "✓ " + currentPronoun.de + " " + currentCorrectAnswer + " (" + currentVerb.de + ")";
-        dom.prevResult.style.color = "var(--success)";
+      var vowelNote = verb.conjugation.vowelChange ? " (⚡ " + verb.conjugation.vowelChange + ")" : "";
+      var srsNote = "";
+      if (srsInfo) {
+        if (srsInfo.newBox === 5) {
+          srsNote = "<br><small style='color: #059669; font-weight: 600;'>🏆 Форма <b>" + pronoun.de + " " + correctAns + "</b> полностью выучена (Уровень 5 — повтор через " + srsInfo.intervalDays + " дн.)</small>";
+        } else {
+          srsNote = "<br><small style='color: var(--primary);'>Форма <b>" + pronoun.de + " " + correctAns + "</b> ➔ Уровень " + srsInfo.newBox + " (повтор через " + srsInfo.intervalDays + " дн.)</small>";
+        }
       }
+
+      showFeedback("🎉 Верно! <b>" + pronoun.de + " " + correctAns + "</b>" + vowelNote + srsNote, "correct");
+      if (dom.answerInput) dom.answerInput.style.borderColor = "var(--success-border)";
     } else {
       scores.streak = 0;
-      var hint = "Правильно: " + currentPronoun.de + " " + currentCorrectAnswer;
-      if (currentVerb.conjugation.vowelChange) {
-        hint += " — " + currentVerb.conjugation.vowelChange;
+      var hint = "Правильно: <b>" + pronoun.de + " " + correctAns + "</b>";
+      if (verb.conjugation.vowelChange) {
+        hint += " — " + verb.conjugation.vowelChange;
       }
-      showFeedback("❌ Ошибка. " + hint, "incorrect");
-      if (dom.prevResult) {
-        dom.prevResult.textContent = "✗ " + currentPronoun.de + " " + currentCorrectAnswer + " (" + currentVerb.de + ")";
-        dom.prevResult.style.color = "var(--danger)";
-      }
+      var srsNoteErr = srsInfo ? "<br><small style='color: #d9480f;'>🌱 Форма <b>" + pronoun.de + " " + correctAns + "</b> вернулась на Уровень 1 (повтор сегодня)</small>" : "";
+      showFeedback("❌ Неверно. " + hint + srsNoteErr, "incorrect");
+      if (dom.answerInput) dom.answerInput.style.borderColor = "var(--danger-border)";
     }
 
-    updateVerbSrs(currentVerb.id, isCorrect);
-    updateScorebar();
+    lastResult = {
+      isCorrect: isCorrect,
+      pronounDe: pronoun.de,
+      pronounRu: pronoun.ru,
+      correctAnswer: correctAns,
+      userAnswer: userVal || "",
+      verbDe: verb.de,
+      ru: verb.ru,
+      formKey: currentUnit.formKey,
+      srsInfo: srsInfo
+    };
 
-    // After answer is evaluated, hide checkBtn so there's only one "Дальше ↦" button
+    renderPrevResult();
+    updateScorebar();
+    saveStats();
+
     if (dom.checkBtn) {
       dom.checkBtn.style.display = "none";
     }
   }
 
-  function showFeedback(text, type) {
+  function showFeedback(htmlText, type) {
     if (!dom.feedback) return;
-    dom.feedback.textContent = text;
+    dom.feedback.innerHTML = htmlText;
     dom.feedback.className = "feedback " + type;
   }
 
@@ -783,6 +887,24 @@
     if (dom.scorePercent) dom.scorePercent.textContent = pct + "%";
     if (dom.streak) dom.streak.textContent = scores.streak;
     if (dom.bestStreak) dom.bestStreak.textContent = scores.bestStreak;
+  }
+
+  function loadSavedStats() {
+    try {
+      var raw = localStorage.getItem(VERB_STATS_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (typeof saved.correct === "number") scores.correct = saved.correct;
+      if (typeof saved.total === "number") scores.total = saved.total;
+      if (typeof saved.streak === "number") scores.streak = saved.streak;
+      if (typeof saved.bestStreak === "number") scores.bestStreak = saved.bestStreak;
+    } catch (e) {}
+  }
+
+  function saveStats() {
+    try {
+      localStorage.setItem(VERB_STATS_KEY, JSON.stringify(scores));
+    } catch (e) {}
   }
 
   // ==================== CHEATSHEET TABLE MODAL ====================
@@ -818,71 +940,104 @@
 
     filtered.forEach(function (v) {
       var tr = document.createElement("tr");
-      var srs = getVerbSrs(v.id);
       var forms = v.conjugation.forms;
       var tagClass = v.isIrregular ? "irreg" : "reg";
       var tagText = v.isIrregular ? "⚡ неправ." : "📘 обычн.";
 
-      var duCellClass = (v.isIrregular && (v.conjugation.vowelChange || /du/.test(v.conjugation.vowelChange || ""))) ? "verb-form-cell mutated" : "verb-form-cell";
-      var erCellClass = (v.isIrregular && v.conjugation.vowelChange) ? "verb-form-cell mutated" : "verb-form-cell";
+      // Build form cell with individual Leitner badge
+      function buildFormCell(pronounKey, isMutated) {
+        var formVal = forms[pronounKey] || "—";
+        var formSrs = getFormSrs(v.id, pronounKey);
+        var box = formSrs.box || 1;
+        var cellCls = isMutated ? "verb-form-cell mutated" : "verb-form-cell";
+        return '<td style="padding: 8px 10px;" class="' + cellCls + '">' +
+          formVal +
+          ' <span class="srs-micro-pill ' + (LEVEL_BADGES[box] ? LEVEL_BADGES[box].cls : "box-1") + '" title="Ячейка ' + box + ' (' + (PRONOUNS.find(function(p){ return p.key === pronounKey; }) || {}).de + ')">ур.' + box + '</span>' +
+          '</td>';
+      }
+
+      var duMutated = v.isIrregular && (v.conjugation.vowelChange || /du/.test(v.conjugation.vowelChange || ""));
+      var erMutated = v.isIrregular && Boolean(v.conjugation.vowelChange);
+
+      // Overall verb progress summary
+      var totalBoxes = 0;
+      var masteredCount = 0;
+      PRONOUNS.forEach(function (p) {
+        var s = getFormSrs(v.id, p.key);
+        totalBoxes += (s.box || 1);
+        if (s.box === 5) masteredCount++;
+      });
+      var avgBox = (totalBoxes / 6).toFixed(1);
+
+      var srsSummaryHtml = masteredCount === 6
+        ? '<span class="srs-box-badge box-5">🏆 Все 6</span>'
+        : '<span class="srs-box-badge ' + (avgBox >= 4 ? "box-4" : (avgBox >= 2.5 ? "box-3" : (avgBox >= 1.8 ? "box-2" : "box-1"))) + '" title="Выучено форм: ' + masteredCount + ' из 6">' + masteredCount + '/6 форм</span>';
 
       tr.innerHTML = [
         '<td style="padding: 8px 10px; font-weight: 700;">' + v.de + ' <span class="verb-table-tag ' + tagClass + '">' + tagText + '</span></td>',
-        '<td style="padding: 8px 10px;" class="verb-form-cell">' + forms.ich + '</td>',
-        '<td style="padding: 8px 10px;" class="' + duCellClass + '">' + forms.du + '</td>',
-        '<td style="padding: 8px 10px;" class="' + erCellClass + '">' + forms.er + '</td>',
-        '<td style="padding: 8px 10px;" class="verb-form-cell">' + forms.wir + '</td>',
-        '<td style="padding: 8px 10px;" class="verb-form-cell">' + forms.ihr + '</td>',
-        '<td style="padding: 8px 10px;" class="verb-form-cell">' + forms.sie + '</td>',
-        '<td style="padding: 8px 10px; color: var(--text-secondary);">' + v.ru + '</td>',
-        '<td style="padding: 8px 10px; text-align: right;"><span class="srs-box-badge ' + (LEVEL_BADGES[srs.box] ? LEVEL_BADGES[srs.box].cls : "box-1") + '">Ур. ' + srs.box + '</span></td>'
+        buildFormCell("ich", false),
+        buildFormCell("du", duMutated),
+        buildFormCell("er", erMutated),
+        buildFormCell("wir", false),
+        buildFormCell("ihr", false),
+        buildFormCell("sie", false),
+        '<td style="padding: 8px 10px; color: var(--text-secondary); font-size: 12px;">' + v.ru + '</td>',
+        '<td style="padding: 8px 10px; text-align: right;">' + srsSummaryHtml + '</td>'
       ].join("");
 
       dom.cheatsheetTbody.appendChild(tr);
     });
   }
 
-  // ==================== SRS PROGRESS MODAL ====================
+  // ==================== SRS PROGRESS MODAL (INDIVIDUAL FORMS) ====================
 
   function updateSrsModal() {
-    var store = getSrsStore();
     var now = Date.now();
     var counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     var dueCount = 0;
-    var dueVerbsList = [];
+    var dueList = [];
 
-    activePool.forEach(function (v) {
-      var srs = store[v.id] || { box: 1, nextReview: 0 };
+    var allUnits = getAllActiveUnits();
+    var totalForms = allUnits.length;
+
+    allUnits.forEach(function (u) {
+      var srs = getFormSrs(u.verb.id, u.pronoun.key);
       var box = srs.box || 1;
       counts[box] = (counts[box] || 0) + 1;
 
       if (srs.nextReview <= now) {
         dueCount++;
-        dueVerbsList.push(v);
+        dueList.push(u);
       }
     });
 
-    var total = activePool.length;
-
-    if (dom.srsTotal) dom.srsTotal.textContent = total;
+    if (dom.srsTotal) {
+      dom.srsTotal.textContent = totalForms + " форм (" + activePool.length + " глаголов)";
+    }
     if (dom.srsDue) dom.srsDue.textContent = dueCount;
-    if (dom.srsMastered) dom.srsMastered.textContent = counts[5] || 0;
+    if (dom.srsMastered) {
+      var m = counts[5] || 0;
+      var mPct = totalForms > 0 ? Math.round((m / totalForms) * 100) : 0;
+      dom.srsMastered.textContent = m + " (" + mPct + "%)";
+    }
 
     for (var b = 1; b <= 5; b++) {
       var countEl = document.getElementById("verb-srs-box-" + b + "-count");
       var barEl = document.getElementById("verb-srs-box-" + b + "-bar");
       var c = counts[b] || 0;
-      var pct = total > 0 ? Math.round((c / total) * 100) : 0;
-      if (countEl) countEl.textContent = c + " (" + pct + "%)";
+      var pct = totalForms > 0 ? Math.round((c / totalForms) * 100) : 0;
+      if (countEl) countEl.textContent = c + " форм (" + pct + "%)";
       if (barEl) barEl.style.width = pct + "%";
     }
 
     if (dom.srsDueList) {
-      if (dueVerbsList.length === 0) {
-        dom.srsDueList.innerHTML = '<span style="font-size: 12px; color: var(--text-muted);">🎉 Все глаголы на сегодня повторены!</span>';
+      if (dueList.length === 0) {
+        dom.srsDueList.innerHTML = '<span style="font-size: 12px; color: var(--text-muted);">🎉 Все формы глаголов на сегодня повторены!</span>';
       } else {
-        dom.srsDueList.innerHTML = dueVerbsList.map(function (v) {
-          return '<span style="display: inline-block; padding: 2px 7px; margin: 2px; border-radius: 4px; background: var(--settings-bg); border: 1px solid var(--border); font-size: 12px;">' + v.de + '</span>';
+        dom.srsDueList.innerHTML = dueList.map(function (u) {
+          return '<span style="display: inline-block; padding: 3px 8px; margin: 2px; border-radius: 6px; background: var(--settings-bg); border: 1px solid var(--border); font-size: 12px;">' +
+            u.verb.de + ' <b>(' + u.pronoun.de + ')</b>' +
+            '</span>';
         }).join("");
       }
     }
@@ -897,7 +1052,7 @@
         btn.addEventListener("click", function () {
           applyVerbTypeFilter(btn.dataset.verbType);
           renderCheatsheet();
-          nextQuestion();
+          nextQuestion(true);
         });
       });
     }
@@ -907,7 +1062,7 @@
       dom.modePills.querySelectorAll(".verb-pill-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
           applyMode(btn.dataset.verbMode);
-          nextQuestion();
+          nextQuestion(true);
         });
       });
     }
@@ -923,25 +1078,25 @@
 
     if (dom.nextBtn) {
       dom.nextBtn.addEventListener("click", function () {
-        nextQuestion();
+        nextQuestion(false);
       });
     }
 
-    // 4. Hint Button (adds one letter at a time, exactly like in words trainer)
+    // 4. Hint Button (reveals next letter of answer)
     if (dom.hintBtn) {
       dom.hintBtn.addEventListener("click", function () {
-        if (!currentVerb || !currentCorrectAnswer || isAnswerChecked) return;
+        if (!currentUnit || !currentUnit.correctAnswer || isAnswerChecked) return;
         var ansEl = dom.answerInput;
         if (!ansEl) return;
 
-        var firstTarget = (currentCorrectAnswer || "").split("/")[0].trim();
+        var firstTarget = (currentUnit.correctAnswer || "").split("/")[0].trim();
         if (!firstTarget) return;
 
         var val = ansEl.value;
+        var pronoun = currentUnit.pronoun;
 
-        // If user typed with pronoun prefix (e.g. "du sprichst"), strip it for matching
-        if (currentPronoun && currentPronoun.de) {
-          var pfx = currentPronoun.de + " ";
+        if (pronoun && pronoun.de) {
+          var pfx = pronoun.de + " ";
           if (val.toLowerCase().startsWith(pfx.toLowerCase())) {
             val = val.slice(pfx.length);
           }
@@ -978,7 +1133,7 @@
           if (!isAnswerChecked) {
             checkInputAnswer();
           } else {
-            nextQuestion();
+            nextQuestion(false);
           }
         }
       });
@@ -1006,7 +1161,9 @@
         scores.streak = 0;
         scores.bestStreak = 0;
         updateScorebar();
-        if (dom.prevResult) dom.prevResult.textContent = "";
+        saveStats();
+        lastResult = null;
+        if (dom.prevResult) dom.prevResult.innerHTML = "";
         showFeedback("Счёт сброшен", "neutral");
       });
     }
@@ -1027,7 +1184,7 @@
     document.querySelectorAll('input[name="verb-mode-radio"]').forEach(function (radio) {
       radio.addEventListener("change", function (e) {
         applyMode(e.target.value);
-        nextQuestion();
+        nextQuestion(true);
       });
     });
 
@@ -1035,7 +1192,7 @@
       radio.addEventListener("change", function (e) {
         applyVerbTypeFilter(e.target.value);
         renderCheatsheet();
-        nextQuestion();
+        nextQuestion(true);
       });
     });
 
@@ -1048,19 +1205,24 @@
         try {
           localStorage.setItem(VERB_SRS_ENABLED_KEY, srsEnabled ? "true" : "false");
         } catch (err) {}
-        updateSrsBadge(currentVerb ? getVerbSrs(currentVerb.id).box : 1);
+        if (currentUnit) {
+          var srs = getFormSrs(currentUnit.verb.id, currentUnit.pronoun.key);
+          updateSrsBadge(currentUnit.pronoun.de, srs.box);
+        }
       });
     }
 
     // 11. Reset SRS button inside SRS modal
     if (dom.srsResetBtn) {
       dom.srsResetBtn.addEventListener("click", function () {
-        if (!confirm("Вы уверены, что хотите сбросить весь прогресс Лейтнера по глаголам?")) return;
+        if (!confirm("Вы уверены, что хотите сбросить весь прогресс Лейтнера по формам глаголов?")) return;
         localStorage.removeItem(VERB_SRS_KEY);
         updateSrsModal();
-        if (currentVerb) updateSrsBadge(1);
+        if (currentUnit) {
+          updateSrsBadge(currentUnit.pronoun.de, 1);
+        }
         renderCheatsheet();
-        alert("Прогресс повторений успешно сброшен на 1 уровень.");
+        alert("Прогресс повторений всех форм глаголов успешно сброшен на Уровень 1.");
       });
     }
 
@@ -1097,6 +1259,8 @@
   function init() {
     initDom();
     loadPreferences();
+    loadSavedStats();
+    updateScorebar();
     bindEvents();
     applyMode(currentMode);
     loadVerbs();
