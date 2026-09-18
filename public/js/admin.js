@@ -11,6 +11,13 @@
   let selectedWordIds = new Set();
   let editingWord = null; // null if adding, word object if editing
 
+  // Verbs State
+  let allVerbs = [];
+  let currentVerbFilter = "all"; // 'all' | 'irregular' | 'regular'
+  let currentVerbSearch = "";
+  let selectedVerbIds = new Set();
+  let editingVerb = null; // null if adding, verb object if editing
+
   // Analytics State
   let analyticsStats = null;
   let analyticsLogs = [];
@@ -67,6 +74,48 @@
   const categoryModalInput = document.getElementById("category-modal-input");
   const categoryModalCancelBtn = document.getElementById("category-modal-cancel-btn");
   const categoryModalSaveBtn = document.getElementById("category-modal-save-btn");
+
+  // Verbs DOM Elements
+  const verbsCountTotal = document.getElementById("verbs-count-total");
+  const verbsCountIrregular = document.getElementById("verbs-count-irregular");
+  const verbsCountRegular = document.getElementById("verbs-count-regular");
+  const openAddVerbBtn = document.getElementById("open-add-verb-btn");
+  const verbFilterTabs = document.querySelectorAll(".verb-filter-tab");
+  const vfilterCountAll = document.getElementById("vfilter-count-all");
+  const vfilterCountIrreg = document.getElementById("vfilter-count-irreg");
+  const vfilterCountReg = document.getElementById("vfilter-count-reg");
+  const verbFilterInput = document.getElementById("verb-filter-input");
+  const clearVerbSearchBtn = document.getElementById("clear-verb-search-btn");
+  const selectAllVerbsCb = document.getElementById("select-all-verbs");
+  const verbsTbody = document.getElementById("verbs-tbody");
+  const verbsEmptyNote = document.getElementById("verbs-empty-note");
+  const verbsBatchActionsBar = document.getElementById("verbs-batch-actions-bar");
+  const verbsSelectedCount = document.getElementById("verbs-selected-count");
+  const verbsBatchDeleteBtn = document.getElementById("verbs-batch-delete-btn");
+  const verbsBatchCancelBtn = document.getElementById("verbs-batch-cancel-btn");
+
+  // Verb Modal Elements
+  const verbModal = document.getElementById("verb-modal");
+  const verbModalTitle = document.getElementById("verb-modal-title");
+  const verbModalDe = document.getElementById("verb-modal-de");
+  const verbModalRu = document.getElementById("verb-modal-ru");
+  const verbModalType = document.getElementById("verb-modal-type");
+  const verbModalCategory = document.getElementById("verb-modal-category");
+  const verbModalAutofillBtn = document.getElementById("verb-modal-autofill-btn");
+  const verbModalPraesens = document.getElementById("verb-modal-praesens");
+  const verbModalPraeteritum = document.getElementById("verb-modal-praeteritum");
+  const verbModalHilfsverb = document.getElementById("verb-modal-hilfsverb");
+  const verbModalPartizip2 = document.getElementById("verb-modal-partizip2");
+  const verbModalVowelNote = document.getElementById("verb-modal-vowel-note");
+  const vpreviewIch = document.getElementById("vpreview-ich");
+  const vpreviewDu = document.getElementById("vpreview-du");
+  const vpreviewEr = document.getElementById("vpreview-er");
+  const vpreviewWir = document.getElementById("vpreview-wir");
+  const vpreviewIhr = document.getElementById("vpreview-ihr");
+  const vpreviewSie = document.getElementById("vpreview-sie");
+  const verbModalDupBanner = document.getElementById("verb-modal-dup-banner");
+  const verbModalCancelBtn = document.getElementById("verb-modal-cancel-btn");
+  const verbModalSaveBtn = document.getElementById("verb-modal-save-btn");
 
   const moveModal = document.getElementById("move-modal");
   const moveModalText = document.getElementById("move-modal-text");
@@ -217,6 +266,10 @@
         stopAnalyticsAutoPoll();
       }
 
+      if (targetId === "tab-verbs") {
+        refreshVerbsData();
+      }
+
       if (targetId === "tab-io") {
         populateCategoryDropdowns();
       }
@@ -228,6 +281,9 @@
   async function loadInitialData() {
     try {
       categories = await ApiClient.get("/api/categories");
+      const allWords = await ApiClient.get("/api/words");
+      allWordsCache = allWords || [];
+      refreshVerbsData();
       await loadWordsForCurrentCategory();
       renderCategoryPills();
       populateCategoryDropdowns();
@@ -312,6 +368,7 @@
   function populateCategoryDropdowns() {
     const dropdowns = [
       wordModalCategory,
+      verbModalCategory,
       moveTargetCategory,
       document.getElementById("export-scope-select"),
       document.getElementById("import-target-cat")
@@ -688,6 +745,36 @@
 
   wordModalDe.addEventListener("input", checkDuplicate);
 
+  const wordModalVerbAutofillBtn = document.getElementById("word-modal-verb-autofill-btn");
+  if (wordModalVerbAutofillBtn) {
+    wordModalVerbAutofillBtn.addEventListener("click", () => {
+      const inf = wordModalDe ? wordModalDe.value.trim().toLowerCase().replace(/^(der|die|das)\s+/i, "") : "";
+      if (!inf) {
+        showToast("Сначала введите немецкое слово / инфинитив", "info");
+        if (wordModalDe) wordModalDe.focus();
+        return;
+      }
+      const known = KNOWN_VERBS_DICT[inf];
+      const reg = conjugateRegularVerb(inf);
+      if (known) {
+        if (wordModalPraesens) wordModalPraesens.value = known.praesens || "";
+        if (wordModalPraeteritum) wordModalPraeteritum.value = known.praeteritum || "";
+        if (wordModalHilfsverb) wordModalHilfsverb.value = known.hilfsverb || "haben";
+        if (wordModalPartizip2) wordModalPartizip2.value = known.partizip2 || "";
+        if (wordModalRu && !wordModalRu.value.trim() && known.ru) wordModalRu.value = known.ru;
+        showToast(`Формы для «${inf}» автозаполнены!`, "info");
+      } else if (reg) {
+        if (wordModalPraesens) wordModalPraesens.value = reg.praesens || "";
+        if (wordModalPraeteritum) wordModalPraeteritum.value = reg.praeteritum || "";
+        if (wordModalHilfsverb) wordModalHilfsverb.value = reg.hilfsverb || "haben";
+        if (wordModalPartizip2) wordModalPartizip2.value = reg.partizip2 || "";
+        showToast(`Формы для «${inf}» сгенерированы!`, "info");
+      } else {
+        showToast("Не удалось определить формы для этого слова", "info");
+      }
+    });
+  }
+
   wordModalSaveBtn.addEventListener("click", async () => {
     const categoryId = wordModalCategory.value;
     const de = wordModalDe.value.trim();
@@ -811,6 +898,684 @@
     } catch (err) {
       showToast("Ошибка удаления: " + err.message, "error");
     }
+  });
+
+  // ==================== VERBS CONTROLLER ====================
+
+  const KNOWN_VERBS_DICT = {
+    sein: { ru: "быть, являться", isIrregular: true, praesens: "ist", praeteritum: "war", partizip2: "gewesen", hilfsverb: "sein", forms: { ich: "bin", du: "bist", er: "ist", wir: "sind", ihr: "seid", sie: "sind" }, vowelChange: "неправильное спряжение (bin, bist, ist)" },
+    haben: { ru: "иметь", isIrregular: true, praesens: "hat", praeteritum: "hatte", partizip2: "gehabt", hilfsverb: "haben", forms: { ich: "habe", du: "hast", er: "hat", wir: "haben", ihr: "habt", sie: "haben" }, vowelChange: "b выпадает: du hast, er hat" },
+    werden: { ru: "становиться", isIrregular: true, praesens: "wird", praeteritum: "wurde", partizip2: "geworden", hilfsverb: "sein", forms: { ich: "werde", du: "wirst", er: "wird", wir: "werden", ihr: "werdet", sie: "werden" }, vowelChange: "e ➔ i (du wirst, er wird)" },
+    gehen: { ru: "идти, ходить", isIrregular: true, praesens: "geht", praeteritum: "ging", partizip2: "gegangen", hilfsverb: "sein", forms: { ich: "gehe", du: "gehst", er: "geht", wir: "gehen", ihr: "geht", sie: "gehen" } },
+    kommen: { ru: "приходить, приезжать", isIrregular: true, praesens: "kommt", praeteritum: "kam", partizip2: "gekommen", hilfsverb: "sein", forms: { ich: "komme", du: "kommst", er: "kommt", wir: "kommen", ihr: "kommt", sie: "kommen" } },
+    sehen: { ru: "видеть, смотреть", isIrregular: true, praesens: "sieht", praeteritum: "sah", partizip2: "gesehen", hilfsverb: "haben", forms: { ich: "sehe", du: "siehst", er: "sieht", wir: "sehen", ihr: "seht", sie: "sehen" }, vowelChange: "e ➔ ie (du siehst, er sieht)" },
+    geben: { ru: "давать", isIrregular: true, praesens: "gibt", praeteritum: "gab", partizip2: "gegeben", hilfsverb: "haben", forms: { ich: "gebe", du: "gibst", er: "gibt", wir: "geben", ihr: "gebt", sie: "geben" }, vowelChange: "e ➔ i (du gibst, er gibt)" },
+    nehmen: { ru: "брать, взять", isIrregular: true, praesens: "nimmt", praeteritum: "nahm", partizip2: "genommen", hilfsverb: "haben", forms: { ich: "nehme", du: "nimmst", er: "nimmt", wir: "nehmen", ihr: "nehmt", sie: "nehmen" }, vowelChange: "e ➔ i, mm (du nimmst, er nimmt)" },
+    sprechen: { ru: "говорить, разговаривать", isIrregular: true, praesens: "spricht", praeteritum: "sprach", partizip2: "gesprochen", hilfsverb: "haben", forms: { ich: "spreche", du: "sprichst", er: "spricht", wir: "sprechen", ihr: "sprecht", sie: "sprechen" }, vowelChange: "e ➔ i (du sprichst, er spricht)" },
+    fahren: { ru: "ехать, водить", isIrregular: true, praesens: "fährt", praeteritum: "fuhr", partizip2: "gefahren", hilfsverb: "sein", forms: { ich: "fahre", du: "fährst", er: "fährt", wir: "fahren", ihr: "fahrt", sie: "fahren" }, vowelChange: "a ➔ ä (du fährst, er fährt)" },
+    lesen: { ru: "читать", isIrregular: true, praesens: "liest", praeteritum: "las", partizip2: "gelesen", hilfsverb: "haben", forms: { ich: "lese", du: "liest", er: "liest", wir: "lesen", ihr: "lest", sie: "lesen" }, vowelChange: "e ➔ ie (du liest, er liest)" },
+    schreiben: { ru: "писать", isIrregular: true, praesens: "schreibt", praeteritum: "schrieb", partizip2: "geschrieben", hilfsverb: "haben", forms: { ich: "schreibe", du: "schreibst", er: "schreibt", wir: "schreiben", ihr: "schreibt", sie: "schreiben" } },
+    finden: { ru: "находить, считать", isIrregular: true, praesens: "findet", praeteritum: "fand", partizip2: "gefunden", hilfsverb: "haben", forms: { ich: "finde", du: "findest", er: "findet", wir: "finden", ihr: "findet", sie: "finden" } },
+    wissen: { ru: "знать (факты)", isIrregular: true, praesens: "weiß", praeteritum: "wusste", partizip2: "gewusst", hilfsverb: "haben", forms: { ich: "weiß", du: "weißt", er: "weiß", wir: "wissen", ihr: "wisst", sie: "wissen" }, vowelChange: "i ➔ ei (ich weiß, du weißt, er weiß)" },
+    bringen: { ru: "приносить", isIrregular: true, praesens: "bringt", praeteritum: "brachte", partizip2: "gebracht", hilfsverb: "haben", forms: { ich: "bringe", du: "bringst", er: "bringt", wir: "bringen", ihr: "bringt", sie: "bringen" } },
+    denken: { ru: "думать", isIrregular: true, praesens: "denkt", praeteritum: "dachte", partizip2: "gedacht", hilfsverb: "haben", forms: { ich: "denke", du: "denkst", er: "denkt", wir: "denken", ihr: "denkt", sie: "denken" } },
+    bleiben: { ru: "оставаться", isIrregular: true, praesens: "bleibt", praeteritum: "blieb", partizip2: "geblieben", hilfsverb: "sein", forms: { ich: "bleibe", du: "bleibst", er: "bleibt", wir: "bleiben", ihr: "bleibt", sie: "bleiben" } },
+    trinken: { ru: "пить", isIrregular: true, praesens: "trinkt", praeteritum: "trank", partizip2: "getrunken", hilfsverb: "haben", forms: { ich: "trinke", du: "trinkst", er: "trinkt", wir: "trinken", ihr: "trinkt", sie: "trinken" } },
+    essen: { ru: "есть, кушать", isIrregular: true, praesens: "isst", praeteritum: "aß", partizip2: "gegessen", hilfsverb: "haben", forms: { ich: "esse", du: "isst", er: "isst", wir: "essen", ihr: "esst", sie: "essen" }, vowelChange: "e ➔ i, ss (du isst, er isst)" },
+    schlafen: { ru: "спать", isIrregular: true, praesens: "schläft", praeteritum: "schlief", partizip2: "geschlafen", hilfsverb: "haben", forms: { ich: "schlafe", du: "schläfst", er: "schläft", wir: "schlafen", ihr: "schlaft", sie: "schlafen" }, vowelChange: "a ➔ ä (du schläfst, er schläft)" },
+    laufen: { ru: "бегать, идти пешком", isIrregular: true, praesens: "läuft", praeteritum: "lief", partizip2: "gelaufen", hilfsverb: "sein", forms: { ich: "laufe", du: "läufst", er: "läuft", wir: "laufen", ihr: "lauft", sie: "laufen" }, vowelChange: "au ➔ äu (du läufst, er läuft)" },
+    helfen: { ru: "помогать", isIrregular: true, praesens: "hilft", praeteritum: "half", partizip2: "geholfen", hilfsverb: "haben", forms: { ich: "helfe", du: "hilfst", er: "hilft", wir: "helfen", ihr: "helft", sie: "helfen" }, vowelChange: "e ➔ i (du hilfst, er hilft)" },
+    treffen: { ru: "встречать, видеться", isIrregular: true, praesens: "trifft", praeteritum: "traf", partizip2: "getroffen", hilfsverb: "haben", forms: { ich: "treffe", du: "triffst", er: "trifft", wir: "treffen", ihr: "trefft", sie: "treffen" }, vowelChange: "e ➔ i (du triffst, er trifft)" },
+    beginnen: { ru: "начинать", isIrregular: true, praesens: "beginnt", praeteritum: "begann", partizip2: "begonnen", hilfsverb: "haben", forms: { ich: "beginne", du: "beginnst", er: "beginnt", wir: "beginnen", ihr: "beginnt", sie: "beginnen" } },
+    verstehen: { ru: "понимать", isIrregular: true, praesens: "versteht", praeteritum: "verstand", partizip2: "verstanden", hilfsverb: "haben", forms: { ich: "verstehe", du: "verstehst", er: "versteht", wir: "verstehen", ihr: "versteht", sie: "verstehen" } },
+    tragen: { ru: "носить, нести", isIrregular: true, praesens: "trägt", praeteritum: "trug", partizip2: "getragen", hilfsverb: "haben", forms: { ich: "trage", du: "trägst", er: "trägt", wir: "tragen", ihr: "tragt", sie: "tragen" }, vowelChange: "a ➔ ä (du trägst, er trägt)" },
+    stehen: { ru: "стоять", isIrregular: true, praesens: "steht", praeteritum: "stand", partizip2: "gestanden", hilfsverb: "haben", forms: { ich: "stehe", du: "stehst", er: "steht", wir: "stehen", ihr: "steht", sie: "stehen" } },
+    liegen: { ru: "лежать", isIrregular: true, praesens: "liegt", praeteritum: "lag", partizip2: "gelegen", hilfsverb: "haben", forms: { ich: "liege", du: "liegst", er: "liegt", wir: "liegen", ihr: "liegt", sie: "liegen" } },
+    sitzen: { ru: "сидеть", isIrregular: true, praesens: "sitzt", praeteritum: "saß", partizip2: "gesessen", hilfsverb: "haben", forms: { ich: "sitze", du: "sitzt", er: "sitzt", wir: "sitzen", ihr: "sitzt", sie: "sitzen" }, vowelChange: "основа на -z (du sitzt, er sitzt)" },
+    fliegen: { ru: "летать, лететь", isIrregular: true, praesens: "fliegt", praeteritum: "flog", partizip2: "geflogen", hilfsverb: "sein", forms: { ich: "fliege", du: "fliegst", er: "fliegt", wir: "fliegen", ihr: "fliegt", sie: "fliegen" } },
+    schwimmen: { ru: "плавать", isIrregular: true, praesens: "schwimmt", praeteritum: "schwamm", partizip2: "geschwommen", hilfsverb: "sein", forms: { ich: "schwimme", du: "schwimmst", er: "schwimmt", wir: "schwimmen", ihr: "schwimmt", sie: "schwimmen" } },
+    verlieren: { ru: "терять, проигрывать", isIrregular: true, praesens: "verliert", praeteritum: "verlor", partizip2: "verloren", hilfsverb: "haben", forms: { ich: "verliere", du: "verlierst", er: "verliert", wir: "verlieren", ihr: "verliert", sie: "verlieren" } },
+    gewinnen: { ru: "выигрывать, побеждать", isIrregular: true, praesens: "gewinnt", praeteritum: "gewann", partizip2: "gewonnen", hilfsverb: "haben", forms: { ich: "gewinne", du: "gewinnst", er: "gewinnt", wir: "gewinnen", ihr: "gewinnt", sie: "gewinnen" } },
+    schließen: { ru: "закрывать, завершать", isIrregular: true, praesens: "schließt", praeteritum: "schloss", partizip2: "geschlossen", hilfsverb: "haben", forms: { ich: "schließe", du: "schließt", er: "schließt", wir: "schließen", ihr: "schließt", sie: "schließen" } },
+    ziehen: { ru: "тянуть, переезжать", isIrregular: true, praesens: "zieht", praeteritum: "zog", partizip2: "gezogen", hilfsverb: "haben", forms: { ich: "ziehe", du: "ziehst", er: "zieht", wir: "ziehen", ihr: "zieht", sie: "ziehen" } },
+    rufen: { ru: "звать, кричать", isIrregular: true, praesens: "ruft", praeteritum: "rief", partizip2: "gerufen", hilfsverb: "haben", forms: { ich: "rufe", du: "rufst", er: "ruft", wir: "rufen", ihr: "ruft", sie: "rufen" } },
+    kennen: { ru: "знать (человека, город)", isIrregular: true, praesens: "kennt", praeteritum: "kannte", partizip2: "gekannt", hilfsverb: "haben", forms: { ich: "kenne", du: "kennst", er: "kennt", wir: "kennen", ihr: "kennt", sie: "kennen" } },
+    waschen: { ru: "мыть, стирать", isIrregular: true, praesens: "wäscht", praeteritum: "wusch", partizip2: "gewaschen", hilfsverb: "haben", forms: { ich: "wasche", du: "wäschst", er: "wäscht", wir: "waschen", ihr: "wascht", sie: "waschen" }, vowelChange: "a ➔ ä (du wäschst, er wäscht)" },
+    vergessen: { ru: "забывать", isIrregular: true, praesens: "vergisst", praeteritum: "vergaß", partizip2: "vergessen", hilfsverb: "haben", forms: { ich: "vergesse", du: "vergisst", er: "vergisst", wir: "vergessen", ihr: "vergesst", sie: "vergessen" }, vowelChange: "e ➔ i (du vergisst, er vergisst)" },
+    einladen: { ru: "приглашать", isIrregular: true, praesens: "lädt ein", praeteritum: "lud ein", partizip2: "eingeladen", hilfsverb: "haben", forms: { ich: "lade ein", du: "lädst ein", er: "lädt ein", wir: "laden ein", ihr: "ladet ein", sie: "laden ein" }, vowelChange: "a ➔ ä (du lädst ein, er lädt ein)" },
+    anfangen: { ru: "начинать", isIrregular: true, praesens: "fängt an", praeteritum: "fing an", partizip2: "angefangen", hilfsverb: "haben", forms: { ich: "fange an", du: "fängst an", er: "fängt an", wir: "fangen an", ihr: "fangt an", sie: "fangen an" }, vowelChange: "a ➔ ä (du fängst an, er fängt an)" },
+    aufstehen: { ru: "вставать, подниматься", isIrregular: true, praesens: "steht auf", praeteritum: "stand auf", partizip2: "aufgestanden", hilfsverb: "sein", forms: { ich: "stehe auf", du: "stehst auf", er: "steht auf", wir: "stehen auf", ihr: "steht auf", sie: "stehen auf" } },
+    fernsehen: { ru: "смотреть телевизор", isIrregular: true, praesens: "sieht fern", praeteritum: "sah fern", partizip2: "ferngesehen", hilfsverb: "haben", forms: { ich: "sehe fern", du: "siehst fern", er: "sieht fern", wir: "sehen fern", ihr: "seht fern", sie: "sehen fern" }, vowelChange: "e ➔ ie (du siehst fern, er sieht fern)" },
+    mitkommen: { ru: "идти вместе, составить компанию", isIrregular: true, praesens: "kommt mit", praeteritum: "kam mit", partizip2: "mitgekommen", hilfsverb: "sein", forms: { ich: "komme mit", du: "kommst mit", er: "kommt mit", wir: "kommen mit", ihr: "kommt mit", sie: "kommen mit" } },
+    sterben: { ru: "умирать", isIrregular: true, praesens: "stirbt", praeteritum: "starb", partizip2: "gestorben", hilfsverb: "sein", forms: { ich: "sterbe", du: "stirbst", er: "stirbt", wir: "sterben", ihr: "sterbt", sie: "sterben" }, vowelChange: "e ➔ i (du stirbst, er stirbt)" },
+    bieten: { ru: "предлагать", isIrregular: true, praesens: "bietet", praeteritum: "bot", partizip2: "geboten", hilfsverb: "haben", forms: { ich: "biete", du: "bietest", er: "bietet", wir: "bieten", ihr: "bietet", sie: "bieten" } },
+    bitten: { ru: "просить", isIrregular: true, praesens: "bittet", praeteritum: "bat", partizip2: "gebeten", hilfsverb: "haben", forms: { ich: "bitte", du: "bittest", er: "bittet", wir: "bitten", ihr: "bittet", sie: "bitten" } },
+    fallen: { ru: "падать", isIrregular: true, praesens: "fällt", praeteritum: "fiel", partizip2: "gefallen", hilfsverb: "sein", forms: { ich: "falle", du: "fällst", er: "fällt", wir: "fallen", ihr: "fallt", sie: "fallen" }, vowelChange: "a ➔ ä (du fällst, er fällt)" },
+    halten: { ru: "держать, останавливаться", isIrregular: true, praesens: "hält", praeteritum: "hielt", partizip2: "gehalten", hilfsverb: "haben", forms: { ich: "halte", du: "hältst", er: "hält", wir: "halten", ihr: "haltet", sie: "halten" }, vowelChange: "a ➔ ä (du hältst, er hält)" },
+    lassen: { ru: "оставлять, позволять", isIrregular: true, praesens: "lässt", praeteritum: "ließ", partizip2: "gelassen", hilfsverb: "haben", forms: { ich: "lasse", du: "lässt", er: "lässt", wir: "lassen", ihr: "lasst", sie: "lassen" }, vowelChange: "a ➔ ä (du lässt, er lässt)" },
+    nennen: { ru: "называть", isIrregular: true, praesens: "nennt", praeteritum: "nannte", partizip2: "genannt", hilfsverb: "haben", forms: { ich: "nenne", du: "nennst", er: "nennt", wir: "nennen", ihr: "nennt", sie: "nennen" } },
+    rennen: { ru: "бежать, мчаться", isIrregular: true, praesens: "rennt", praeteritum: "rannte", partizip2: "gerannt", hilfsverb: "sein", forms: { ich: "renne", du: "rennst", er: "rennt", wir: "rennen", ihr: "rennt", sie: "rennen" } },
+    scheinen: { ru: "светить, казаться", isIrregular: true, praesens: "scheint", praeteritum: "schien", partizip2: "geschienen", hilfsverb: "haben", forms: { ich: "scheine", du: "scheinst", er: "scheint", wir: "scheinen", ihr: "scheint", sie: "scheinen" } },
+    schlagen: { ru: "бить, ударять", isIrregular: true, praesens: "schlägt", praeteritum: "schlug", partizip2: "geschlagen", hilfsverb: "haben", forms: { ich: "schlage", du: "schlägst", er: "schlägt", wir: "schlagen", ihr: "schlagt", sie: "schlagen" }, vowelChange: "a ➔ ä (du schlägst, er schlägt)" },
+    schneiden: { ru: "резать", isIrregular: true, praesens: "schneidet", praeteritum: "schnitt", partizip2: "geschnitten", hilfsverb: "haben", forms: { ich: "schneide", du: "schneidest", er: "schneidet", wir: "schneiden", ihr: "schneidet", sie: "schneiden" } },
+    sinken: { ru: "опускаться, тонуть", isIrregular: true, praesens: "sinkt", praeteritum: "sank", partizip2: "gesunken", hilfsverb: "sein", forms: { ich: "sinke", du: "sinkst", er: "sinkt", wir: "sinken", ihr: "sinkt", sie: "sinken" } },
+    steigen: { ru: "подниматься", isIrregular: true, praesens: "steigt", praeteritum: "stieg", partizip2: "gestiegen", hilfsverb: "sein", forms: { ich: "steige", du: "steigst", er: "steigt", wir: "steigen", ihr: "steigt", sie: "steigen" } },
+    tun: { ru: "делать", isIrregular: true, praesens: "tut", praeteritum: "tat", partizip2: "getan", hilfsverb: "haben", forms: { ich: "tue", du: "tust", er: "tut", wir: "tun", ihr: "tut", sie: "tun" } },
+    verbringen: { ru: "проводить (время)", isIrregular: true, praesens: "verbringt", praeteritum: "verbrachte", partizip2: "verbracht", hilfsverb: "haben", forms: { ich: "verbringe", du: "verbringst", er: "verbringt", wir: "verbringen", ihr: "verbringt", sie: "verbringen" } },
+    verlassen: { ru: "покидать, оставлять", isIrregular: true, praesens: "verlässt", praeteritum: "verließ", partizip2: "verlassen", hilfsverb: "haben", forms: { ich: "verlasse", du: "verlässt", er: "verlässt", wir: "verlassen", ihr: "verlasst", sie: "verlassen" }, vowelChange: "a ➔ ä (du verlässt, er verlässt)" },
+    wachsen: { ru: "расти", isIrregular: true, praesens: "wächst", praeteritum: "wuchs", partizip2: "gewachsen", hilfsverb: "sein", forms: { ich: "wachse", du: "wächst", er: "wächst", wir: "wachsen", ihr: "wachst", sie: "wachsen" }, vowelChange: "a ➔ ä (du wächst, er wächst)" },
+    werfen: { ru: "бросать, кидать", isIrregular: true, praesens: "wirft", praeteritum: "warf", partizip2: "geworfen", hilfsverb: "haben", forms: { ich: "werfe", du: "wirfst", er: "wirft", wir: "werfen", ihr: "werft", sie: "werfen" }, vowelChange: "e ➔ i (du wirfst, er wirft)" },
+    // Common regular verbs
+    machen: { ru: "делать", isIrregular: false, praesens: "macht", praeteritum: "machte", partizip2: "gemacht", hilfsverb: "haben" },
+    lernen: { ru: "учить, изучать", isIrregular: false, praesens: "lernt", praeteritum: "lernte", partizip2: "gelernt", hilfsverb: "haben" },
+    arbeiten: { ru: "работать", isIrregular: false, praesens: "arbeitet", praeteritum: "arbeitete", partizip2: "gearbeitet", hilfsverb: "haben" },
+    wohnen: { ru: "жить, проживать", isIrregular: false, praesens: "wohnt", praeteritum: "wohnte", partizip2: "gewohnt", hilfsverb: "haben" },
+    kaufen: { ru: "покупать", isIrregular: false, praesens: "kauft", praeteritum: "kaufte", partizip2: "gekauft", hilfsverb: "haben" },
+    kochen: { ru: "готовить (еду), варить", isIrregular: false, praesens: "kocht", praeteritum: "kochte", partizip2: "gekocht", hilfsverb: "haben" },
+    spielen: { ru: "играть", isIrregular: false, praesens: "spielt", praeteritum: "spielte", partizip2: "gespielt", hilfsverb: "haben" },
+    fragen: { ru: "спрашивать", isIrregular: false, praesens: "fragt", praeteritum: "fragte", partizip2: "gefragt", hilfsverb: "haben" },
+    antworten: { ru: "отвечать", isIrregular: false, praesens: "antwortet", praeteritum: "antwortete", partizip2: "geantwortet", hilfsverb: "haben" },
+    hören: { ru: "слушать, слышать", isIrregular: false, praesens: "hört", praeteritum: "hörte", partizip2: "gehört", hilfsverb: "haben" },
+    brauchen: { ru: "нуждаться, требоваться", isIrregular: false, praesens: "braucht", praeteritum: "brauchte", partizip2: "gebraucht", hilfsverb: "haben" },
+    leben: { ru: "жить, существовать", isIrregular: false, praesens: "lebt", praeteritum: "lebte", partizip2: "gelebt", hilfsverb: "haben" },
+    lieben: { ru: "любить", isIrregular: false, praesens: "liebt", praeteritum: "liebte", partizip2: "geliebt", hilfsverb: "haben" },
+    suchen: { ru: "искать", isIrregular: false, praesens: "sucht", praeteritum: "suchte", partizip2: "gesucht", hilfsverb: "haben" },
+    reisen: { ru: "путешествовать", isIrregular: false, praesens: "reist", praeteritum: "reiste", partizip2: "gereist", hilfsverb: "sein" },
+    tanzen: { ru: "танцевать", isIrregular: false, praesens: "tanzt", praeteritum: "tanzte", partizip2: "getanzt", hilfsverb: "haben" }
+  };
+
+  function conjugateRegularVerb(inf) {
+    if (!inf) return null;
+    const lower = inf.trim().toLowerCase();
+    let stem = lower;
+    if (lower.endsWith("en")) stem = lower.slice(0, -2);
+    else if (lower.endsWith("n")) stem = lower.slice(0, -1);
+
+    const needsE = /[td]$/.test(stem) || /[^aeiou][mn]$/.test(stem);
+    const sEnding = /[sßzx]$|tz$/.test(stem);
+
+    const forms = {
+      ich: stem + "e",
+      du: stem + (sEnding ? "t" : (needsE ? "est" : "st")),
+      er: stem + (needsE ? "et" : "t"),
+      wir: lower,
+      ihr: stem + (needsE ? "et" : "t"),
+      sie: lower
+    };
+
+    const praeteritum = stem + (needsE ? "ete" : "te");
+    
+    // Partizip II rules:
+    let partizip2;
+    if (lower.endsWith("ieren")) {
+      partizip2 = stem + "t";
+    } else if (/^(be|ver|zer|er|ent|emp|miss|ge)/.test(lower)) {
+      partizip2 = stem + (needsE ? "et" : "t");
+    } else {
+      partizip2 = "ge" + stem + (needsE ? "et" : "t");
+    }
+
+    // Auxiliary verb guess:
+    const isMotion = ["reisen", "wandern", "folgen", "klettern", "segeln", "joggen"].includes(lower);
+    const hilfsverb = isMotion ? "sein" : "haben";
+
+    return {
+      forms,
+      praesens: forms.er,
+      praeteritum,
+      partizip2,
+      hilfsverb,
+      isIrregular: false
+    };
+  }
+
+  function getVerbForms(infinitive, userPraesens, userPraeteritum, userPartizip2, userHilfsverb) {
+    const key = (infinitive || "").trim().toLowerCase();
+    const known = KNOWN_VERBS_DICT[key];
+    const regular = conjugateRegularVerb(infinitive);
+
+    let forms;
+    if (known && known.forms) {
+      forms = { ...known.forms };
+    } else if (regular) {
+      forms = { ...regular.forms };
+    } else {
+      forms = { ich: "-", du: "-", er: "-", wir: "-", ihr: "-", sie: "-" };
+    }
+
+    if (userPraesens && userPraesens.trim()) {
+      let p = userPraesens.trim();
+      p = p.replace(/^(er|sie|es)\s+/i, "");
+      forms.er = p;
+      // If user typed 3rd person like "spricht" or "fährt", adjust 2nd person (du) too
+      if (known && known.forms) {
+        forms.du = known.forms.du;
+      }
+    }
+
+    const praeteritum = (userPraeteritum && userPraeteritum.trim()) || (known?.praeteritum) || (regular?.praeteritum) || "";
+    const partizip2 = (userPartizip2 && userPartizip2.trim()) || (known?.partizip2) || (regular?.partizip2) || "";
+    const hilfsverb = userHilfsverb || (known?.hilfsverb) || (regular?.hilfsverb) || "haben";
+    const vowelChange = known?.vowelChange || "";
+
+    return { forms, praeteritum, partizip2, hilfsverb, vowelChange };
+  }
+
+  function isVerbWord(w) {
+    if (!w) return false;
+    const catName = (w.category?.name || "").toLowerCase();
+    const catId = w.categoryId || "";
+    const de = (w.de || "").trim().toLowerCase();
+
+    if (catId === "cat_irregular_verbs" || catId === "cat_regular_verbs" || catId === "cat_verbs") return true;
+    if (catName.includes("глагол") || catName.includes("verb")) return true;
+    if (w.praeteritum || w.partizip2 || w.praesens || w.hilfsverb) return true;
+    if (KNOWN_VERBS_DICT[de]) return true;
+
+    return false;
+  }
+
+  function classifyVerbType(w) {
+    const catName = (w.category?.name || "").toLowerCase();
+    const catId = w.categoryId || "";
+    const de = (w.de || "").trim().toLowerCase();
+
+    if (catId === "cat_irregular_verbs" || catName.includes("неправильн")) return "irregular";
+    if (catId === "cat_regular_verbs" || catName.includes("обычн")) return "regular";
+
+    const known = KNOWN_VERBS_DICT[de];
+    if (known) return known.isIrregular ? "irregular" : "regular";
+
+    if (w.praeteritum) {
+      const reg = conjugateRegularVerb(w.de);
+      if (reg && w.praeteritum !== reg.praeteritum) return "irregular";
+    }
+
+    return "regular";
+  }
+
+  function refreshVerbsData() {
+    allVerbs = (allWordsCache || []).filter(isVerbWord).map((w) => {
+      const vtype = classifyVerbType(w);
+      const computed = getVerbForms(w.de, w.praesens, w.praeteritum, w.partizip2, w.hilfsverb);
+      return {
+        ...w,
+        vtype,
+        computedPraesens: w.praesens || computed.forms.er,
+        computedPraeteritum: w.praeteritum || computed.praeteritum,
+        computedPartizip2: w.partizip2 || computed.partizip2,
+        computedHilfsverb: w.hilfsverb || computed.hilfsverb,
+        forms: computed.forms,
+        vowelChange: computed.vowelChange
+      };
+    });
+
+    // Sort alphabetically by German infinitive
+    allVerbs.sort((a, b) => (a.de || "").localeCompare(b.de || "", "de"));
+
+    const irregularCount = allVerbs.filter((v) => v.vtype === "irregular").length;
+    const regularCount = allVerbs.length - irregularCount;
+
+    if (verbsCountTotal) verbsCountTotal.textContent = allVerbs.length;
+    if (verbsCountIrregular) verbsCountIrregular.textContent = irregularCount;
+    if (verbsCountRegular) verbsCountRegular.textContent = regularCount;
+
+    if (vfilterCountAll) vfilterCountAll.textContent = allVerbs.length;
+    if (vfilterCountIrreg) vfilterCountIrreg.textContent = irregularCount;
+    if (vfilterCountReg) vfilterCountReg.textContent = regularCount;
+
+    renderVerbsTable();
+  }
+
+  function renderVerbsTable() {
+    if (!verbsTbody) return;
+    verbsTbody.innerHTML = "";
+
+    const search = currentVerbSearch.trim().toLowerCase();
+    const filtered = allVerbs.filter((v) => {
+      if (currentVerbFilter === "irregular" && v.vtype !== "irregular") return false;
+      if (currentVerbFilter === "regular" && v.vtype !== "regular") return false;
+
+      if (!search) return true;
+      const matchDe = (v.de || "").toLowerCase().includes(search);
+      const matchRu = (v.ru || "").toLowerCase().includes(search);
+      const matchPrat = (v.computedPraeteritum || "").toLowerCase().includes(search);
+      const matchP2 = (v.computedPartizip2 || "").toLowerCase().includes(search);
+      const matchPraes = (v.computedPraesens || "").toLowerCase().includes(search);
+      return matchDe || matchRu || matchPrat || matchP2 || matchPraes;
+    });
+
+    if (filtered.length === 0) {
+      if (verbsEmptyNote) {
+        verbsEmptyNote.textContent = search ? "По вашему запросу глаголов не найдено" : "В этом списке пока нет глаголов";
+        verbsEmptyNote.style.display = "block";
+      }
+      if (selectAllVerbsCb) selectAllVerbsCb.checked = false;
+      return;
+    }
+
+    if (verbsEmptyNote) verbsEmptyNote.style.display = "none";
+
+    filtered.forEach((v) => {
+      const tr = document.createElement("tr");
+      const isSelected = selectedVerbIds.has(v.id);
+      const isIrreg = v.vtype === "irregular";
+      const badge = isIrreg
+        ? '<span class="badge-irreg">⚡ Неправильный</span>'
+        : '<span class="badge-reg">📘 Обычный</span>';
+      
+      const auxTag = v.computedHilfsverb === "sein"
+        ? '<span class="vform-tag" style="color: #2563eb; font-weight: 600;">ist</span>'
+        : '<span class="vform-tag" style="color: #d97706; font-weight: 600;">hat</span>';
+
+      const catName = v.category?.name || "Без категории";
+
+      tr.innerHTML = `
+        <td style="text-align: center; vertical-align: middle;">
+          <input type="checkbox" class="verb-row-cb" data-id="${v.id}" ${isSelected ? "checked" : ""}>
+        </td>
+        <td style="font-weight: 700; vertical-align: middle;">
+          <span style="font-size: 14px;">${escapeHtml(v.de)}</span>
+        </td>
+        <td style="color: var(--text-primary); vertical-align: middle;">
+          ${escapeHtml(v.ru || "")}
+        </td>
+        <td style="vertical-align: middle;">
+          ${badge}
+        </td>
+        <td style="vertical-align: middle; color: var(--text-secondary); font-family: monospace, inherit;">
+          ${escapeHtml(v.computedPraesens || "-")}
+        </td>
+        <td style="vertical-align: middle; color: var(--text-secondary); font-family: monospace, inherit;">
+          ${escapeHtml(v.computedPraeteritum || "-")}
+        </td>
+        <td style="vertical-align: middle; font-family: monospace, inherit;">
+          ${auxTag} ${escapeHtml(v.computedPartizip2 || "-")}
+        </td>
+        <td style="vertical-align: middle; font-size: 12px; color: var(--text-muted);">
+          ${escapeHtml(catName)}
+        </td>
+        <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+          <div style="display: inline-flex; gap: 4px;">
+            <button type="button" class="small-btn edit-verb-btn" title="Редактировать глагол" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+              ✏️
+            </button>
+            <button type="button" class="small-btn danger-btn delete-verb-btn" title="Удалить глагол" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;">
+              🗑️
+            </button>
+          </div>
+        </td>
+      `;
+
+      // Checkbox listener
+      const cb = tr.querySelector(".verb-row-cb");
+      cb.addEventListener("change", (e) => {
+        if (e.target.checked) selectedVerbIds.add(v.id);
+        else selectedVerbIds.delete(v.id);
+        updateVerbsBatchActionsBar();
+      });
+
+      // Edit listener
+      tr.querySelector(".edit-verb-btn").addEventListener("click", () => {
+        openEditVerbModal(v);
+      });
+
+      // Delete listener
+      tr.querySelector(".delete-verb-btn").addEventListener("click", async () => {
+        const confirmed = await showConfirmDialog(
+          "Удаление глагола",
+          `Вы действительно хотите удалить глагол «${v.de}» (${v.ru})?`
+        );
+        if (!confirmed) return;
+
+        try {
+          await ApiClient.delete(`/api/words/${v.id}`);
+          showToast(`Глагол «${v.de}» удалён`, "success");
+          selectedVerbIds.delete(v.id);
+          await loadInitialData();
+        } catch (err) {
+          showToast("Ошибка при удалении: " + err.message, "error");
+        }
+      });
+
+      verbsTbody.appendChild(tr);
+    });
+
+    if (selectAllVerbsCb) {
+      selectAllVerbsCb.checked = filtered.length > 0 && filtered.every((v) => selectedVerbIds.has(v.id));
+    }
+  }
+
+  function updateVerbsBatchActionsBar() {
+    if (!verbsBatchActionsBar || !verbsSelectedCount) return;
+    const count = selectedVerbIds.size;
+    if (count > 0) {
+      verbsBatchActionsBar.style.display = "flex";
+      verbsSelectedCount.textContent = count;
+    } else {
+      verbsBatchActionsBar.style.display = "none";
+    }
+  }
+
+  // Filter pills
+  verbFilterTabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      verbFilterTabs.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentVerbFilter = btn.dataset.verbFilter || "all";
+      renderVerbsTable();
+    });
+  });
+
+  // Search input for verbs
+  if (verbFilterInput) {
+    verbFilterInput.addEventListener("input", () => {
+      currentVerbSearch = verbFilterInput.value;
+      if (clearVerbSearchBtn) {
+        clearVerbSearchBtn.style.display = currentVerbSearch ? "block" : "none";
+      }
+      renderVerbsTable();
+    });
+  }
+
+  if (clearVerbSearchBtn) {
+    clearVerbSearchBtn.addEventListener("click", () => {
+      if (verbFilterInput) verbFilterInput.value = "";
+      currentVerbSearch = "";
+      clearVerbSearchBtn.style.display = "none";
+      renderVerbsTable();
+      if (verbFilterInput) verbFilterInput.focus();
+    });
+  }
+
+  // Select all checkbox for verbs
+  if (selectAllVerbsCb) {
+    selectAllVerbsCb.addEventListener("change", (e) => {
+      const isChecked = e.target.checked;
+      const cbs = verbsTbody.querySelectorAll(".verb-row-cb");
+      cbs.forEach((cb) => {
+        cb.checked = isChecked;
+        const id = cb.dataset.id;
+        if (isChecked) selectedVerbIds.add(id);
+        else selectedVerbIds.delete(id);
+      });
+      updateVerbsBatchActionsBar();
+    });
+  }
+
+  // Cancel batch selection
+  if (verbsBatchCancelBtn) {
+    verbsBatchCancelBtn.addEventListener("click", () => {
+      selectedVerbIds.clear();
+      verbsTbody.querySelectorAll(".verb-row-cb").forEach((cb) => (cb.checked = false));
+      if (selectAllVerbsCb) selectAllVerbsCb.checked = false;
+      updateVerbsBatchActionsBar();
+    });
+  }
+
+  // Batch delete verbs
+  if (verbsBatchDeleteBtn) {
+    verbsBatchDeleteBtn.addEventListener("click", async () => {
+      const count = selectedVerbIds.size;
+      if (count === 0) return;
+
+      const confirmed = await showConfirmDialog(
+        "Удаление выбранных глаголов",
+        `Вы действительно хотите удалить ${count} выбранных глаголов? Это действие необратимо!`
+      );
+      if (!confirmed) return;
+
+      try {
+        const ids = Array.from(selectedVerbIds);
+        await Promise.all(ids.map((id) => ApiClient.delete(`/api/words/${id}`)));
+        showToast(`Удалено ${count} глаголов`, "success");
+        selectedVerbIds.clear();
+        updateVerbsBatchActionsBar();
+        await loadInitialData();
+      } catch (err) {
+        showToast("Ошибка массового удаления: " + err.message, "error");
+      }
+    });
+  }
+
+  // Open Add Verb Modal
+  if (openAddVerbBtn) {
+    openAddVerbBtn.addEventListener("click", () => {
+      openAddVerbModal();
+    });
+  }
+
+  function getVerbCategoryForType(type) {
+    const isIrreg = type === "irregular";
+    let target = categories.find((c) => isIrreg ? c.name.toLowerCase().includes("неправильн") : c.name.toLowerCase().includes("обычн"));
+    if (!target) {
+      target = categories.find((c) => c.name.toLowerCase().includes("глагол"));
+    }
+    return target ? target.id : (categories[0]?.id || "");
+  }
+
+  function openAddVerbModal() {
+    editingVerb = null;
+    populateCategoryDropdowns();
+    if (verbModalDupBanner) verbModalDupBanner.style.display = "none";
+    if (verbModalTitle) verbModalTitle.textContent = "Добавление глагола";
+
+    if (verbModalDe) verbModalDe.value = "";
+    if (verbModalRu) verbModalRu.value = "";
+    if (verbModalType) verbModalType.value = currentVerbFilter === "regular" ? "regular" : "irregular";
+    if (verbModalCategory) verbModalCategory.value = getVerbCategoryForType(verbModalType.value);
+    if (verbModalPraesens) verbModalPraesens.value = "";
+    if (verbModalPraeteritum) verbModalPraeteritum.value = "";
+    if (verbModalHilfsverb) verbModalHilfsverb.value = "haben";
+    if (verbModalPartizip2) verbModalPartizip2.value = "";
+
+    updateVerbConjugationPreview();
+
+    if (verbModal) {
+      verbModal.classList.remove("hidden");
+      document.body.classList.add("modal-open");
+      setTimeout(() => verbModalDe && verbModalDe.focus(), 50);
+    }
+  }
+
+  function openEditVerbModal(v) {
+    editingVerb = v;
+    populateCategoryDropdowns();
+    if (verbModalDupBanner) verbModalDupBanner.style.display = "none";
+    if (verbModalTitle) verbModalTitle.textContent = `Редактирование глагола: ${v.de}`;
+
+    if (verbModalDe) verbModalDe.value = v.de || "";
+    if (verbModalRu) verbModalRu.value = v.ru || "";
+    if (verbModalType) verbModalType.value = v.vtype || "irregular";
+    if (verbModalCategory) verbModalCategory.value = v.categoryId || getVerbCategoryForType(verbModalType.value);
+    if (verbModalPraesens) verbModalPraesens.value = v.praesens || v.computedPraesens || "";
+    if (verbModalPraeteritum) verbModalPraeteritum.value = v.praeteritum || v.computedPraeteritum || "";
+    if (verbModalHilfsverb) verbModalHilfsverb.value = (v.hilfsverb === "sein" || v.computedHilfsverb === "sein") ? "sein" : "haben";
+    if (verbModalPartizip2) verbModalPartizip2.value = v.partizip2 || v.computedPartizip2 || "";
+
+    updateVerbConjugationPreview();
+
+    if (verbModal) {
+      verbModal.classList.remove("hidden");
+      document.body.classList.add("modal-open");
+      setTimeout(() => verbModalRu && verbModalRu.focus(), 50);
+    }
+  }
+
+  function updateVerbConjugationPreview() {
+    const inf = verbModalDe ? verbModalDe.value.trim() : "";
+    const p3 = verbModalPraesens ? verbModalPraesens.value.trim() : "";
+    const prat = verbModalPraeteritum ? verbModalPraeteritum.value.trim() : "";
+    const p2 = verbModalPartizip2 ? verbModalPartizip2.value.trim() : "";
+    const aux = verbModalHilfsverb ? verbModalHilfsverb.value : "haben";
+
+    const computed = getVerbForms(inf, p3, prat, p2, aux);
+    const f = computed.forms;
+
+    if (vpreviewIch) vpreviewIch.textContent = f.ich || "-";
+    if (vpreviewDu) vpreviewDu.textContent = f.du || "-";
+    if (vpreviewEr) vpreviewEr.textContent = f.er || "-";
+    if (vpreviewWir) vpreviewWir.textContent = f.wir || "-";
+    if (vpreviewIhr) vpreviewIhr.textContent = f.ihr || "-";
+    if (vpreviewSie) vpreviewSie.textContent = f.sie || "-";
+
+    if (verbModalVowelNote) {
+      verbModalVowelNote.textContent = computed.vowelChange ? `(${computed.vowelChange})` : "";
+    }
+
+    checkVerbDuplicate();
+  }
+
+  function autofillVerbFields(infinitive) {
+    if (!infinitive) return;
+    const clean = infinitive.trim().toLowerCase();
+    const known = KNOWN_VERBS_DICT[clean];
+    const reg = conjugateRegularVerb(clean);
+
+    if (known) {
+      if (verbModalType) verbModalType.value = known.isIrregular ? "irregular" : "regular";
+      if (verbModalCategory) verbModalCategory.value = getVerbCategoryForType(verbModalType.value);
+      if (verbModalPraesens) verbModalPraesens.value = known.praesens || "";
+      if (verbModalPraeteritum) verbModalPraeteritum.value = known.praeteritum || "";
+      if (verbModalHilfsverb) verbModalHilfsverb.value = known.hilfsverb || "haben";
+      if (verbModalPartizip2) verbModalPartizip2.value = known.partizip2 || "";
+      if (verbModalRu && !verbModalRu.value.trim() && known.ru) {
+        verbModalRu.value = known.ru;
+      }
+      showToast(`Формы для «${clean}» автозаполнены!`, "info");
+    } else if (reg) {
+      if (verbModalType) verbModalType.value = "regular";
+      if (verbModalCategory) verbModalCategory.value = getVerbCategoryForType("regular");
+      if (verbModalPraesens) verbModalPraesens.value = reg.praesens || "";
+      if (verbModalPraeteritum) verbModalPraeteritum.value = reg.praeteritum || "";
+      if (verbModalHilfsverb) verbModalHilfsverb.value = reg.hilfsverb || "haben";
+      if (verbModalPartizip2) verbModalPartizip2.value = reg.partizip2 || "";
+      showToast(`Стандартные формы для «${clean}» сгенерированы!`, "info");
+    }
+
+    updateVerbConjugationPreview();
+  }
+
+  if (verbModalAutofillBtn) {
+    verbModalAutofillBtn.addEventListener("click", () => {
+      const inf = verbModalDe ? verbModalDe.value.trim() : "";
+      if (!inf) {
+        showToast("Сначала введите инфинитив глагола", "info");
+        if (verbModalDe) verbModalDe.focus();
+        return;
+      }
+      autofillVerbFields(inf);
+    });
+  }
+
+  if (verbModalType) {
+    verbModalType.addEventListener("change", () => {
+      if (verbModalCategory) {
+        verbModalCategory.value = getVerbCategoryForType(verbModalType.value);
+      }
+    });
+  }
+
+  [verbModalDe, verbModalPraesens, verbModalPraeteritum, verbModalPartizip2, verbModalHilfsverb].filter(Boolean).forEach((el) => {
+    el.addEventListener("input", updateVerbConjugationPreview);
+  });
+
+  function checkVerbDuplicate() {
+    if (!verbModalDupBanner || !verbModalDe) return;
+    const val = verbModalDe.value.trim().toLowerCase();
+    if (!val) {
+      verbModalDupBanner.style.display = "none";
+      return;
+    }
+
+    const dup = allWordsCache.find((w) => {
+      if (editingVerb && w.id === editingVerb.id) return false;
+      return (w.de || "").toLowerCase().trim() === val;
+    });
+
+    if (dup) {
+      const catName = dup.category?.name || "другой категории";
+      verbModalDupBanner.textContent = `⚠️ Глагол «${dup.de}» уже есть в категории «${catName}» (перевод: ${dup.ru}).`;
+      verbModalDupBanner.style.display = "block";
+    } else {
+      verbModalDupBanner.style.display = "none";
+    }
+  }
+
+  if (verbModalCancelBtn) {
+    verbModalCancelBtn.addEventListener("click", () => {
+      if (verbModal) verbModal.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+    });
+  }
+
+  if (verbModalSaveBtn) {
+    verbModalSaveBtn.addEventListener("click", async () => {
+      const categoryId = verbModalCategory ? verbModalCategory.value : "";
+      const de = verbModalDe ? verbModalDe.value.trim() : "";
+      const ru = verbModalRu ? verbModalRu.value.trim() : "";
+      const praesens = verbModalPraesens ? verbModalPraesens.value.trim() : "";
+      const praeteritum = verbModalPraeteritum ? verbModalPraeteritum.value.trim() : "";
+      const hilfsverb = verbModalHilfsverb ? verbModalHilfsverb.value : "haben";
+      const partizip2 = verbModalPartizip2 ? verbModalPartizip2.value.trim() : "";
+
+      if (!de || !ru) {
+        showToast("Заполните инфинитив и перевод", "error");
+        if (!de && verbModalDe) verbModalDe.focus();
+        else if (verbModalRu) verbModalRu.focus();
+        return;
+      }
+
+      if (!categoryId) {
+        showToast("Выберите раздел для глагола", "error");
+        return;
+      }
+
+      // Build clean plural forms string: e.g. "ging, sein gegangen (er geht)"
+      const parts = [];
+      if (praeteritum) parts.push(praeteritum);
+      if (partizip2) parts.push(`${hilfsverb} ${partizip2}`);
+      if (praesens) parts.push(`(er ${praesens})`);
+      const plural = parts.join(", ");
+
+      const payload = {
+        categoryId,
+        de,
+        ru,
+        praeteritum: praeteritum || null,
+        partizip2: partizip2 || null,
+        hilfsverb: hilfsverb || "haben",
+        praesens: praesens || null,
+        plural: plural || null,
+        feminine: null,
+        femininePlural: null
+      };
+
+      try {
+        if (editingVerb) {
+          await ApiClient.put(`/api/words/${editingVerb.id}`, payload);
+          showToast(`Глагол «${de}» успешно сохранён!`, "success");
+        } else {
+          await ApiClient.post("/api/words", payload);
+          showToast(`Глагол «${de}» добавлен!`, "success");
+        }
+
+        if (verbModal) verbModal.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+        await loadInitialData();
+      } catch (err) {
+        showToast("Ошибка сохранения: " + err.message, "error");
+      }
+    });
+  }
+
+  // Enter to save inside verb modal
+  [verbModalDe, verbModalRu, verbModalPraesens, verbModalPraeteritum, verbModalPartizip2].filter(Boolean).forEach((input) => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        if (verbModalSaveBtn) verbModalSaveBtn.click();
+      }
+    });
   });
 
   // ==================== ANALYTICS CONTROLLER ====================

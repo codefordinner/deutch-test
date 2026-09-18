@@ -29,6 +29,9 @@
     <button type="button" class="admin-nav-btn active" data-tab="tab-words" id="nav-tab-words">
       📚 Слова и разделы
     </button>
+    <button type="button" class="admin-nav-btn" data-tab="tab-verbs" id="nav-tab-verbs">
+      ⚡ Глаголы
+    </button>
     <button type="button" class="admin-nav-btn" data-tab="tab-analytics" id="nav-tab-analytics">
       📊 Статистика и посетители
     </button>
@@ -113,7 +116,77 @@
     </div>
   </div>
 
-  <!-- ==================== TAB 2: ANALYTICS & VISITORS ==================== -->
+  <!-- ==================== TAB 2: VERBS MANAGEMENT ==================== -->
+  <div class="admin-tab-content" id="tab-verbs">
+    <!-- Active Header & Actions -->
+    <div class="admin-section" style="padding: 16px 20px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;">
+      <div>
+        <h2 style="margin: 0 0 4px; font-size: 17px; font-weight: 700;">⚡ Управление глаголами</h2>
+        <span id="verbs-category-subtitle" style="font-size: 13px; color: var(--text-secondary);">
+          Всего глаголов: <b id="verbs-count-total" style="color: var(--text-primary);">0</b>
+          (⚡ Неправильных: <b id="verbs-count-irregular" style="color: #7c3aed;">0</b>, 📘 Обычных: <b id="verbs-count-regular" style="color: #2563eb;">0</b>)
+        </span>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button type="button" class="small-btn" id="open-add-verb-btn" style="background: var(--accent); color: #fff; font-weight: 600; padding: 7px 14px; border: none;">
+          ➕ Добавить глагол
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter & Search Bar -->
+    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; justify-content: space-between;">
+      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;" id="verb-type-filter-group">
+        <button type="button" class="verb-filter-tab active" data-verb-filter="all" id="vfilter-btn-all">Все глаголы (<span id="vfilter-count-all">0</span>)</button>
+        <button type="button" class="verb-filter-tab" data-verb-filter="irregular" id="vfilter-btn-irreg">⚡ Неправильные (<span id="vfilter-count-irreg">0</span>)</button>
+        <button type="button" class="verb-filter-tab" data-verb-filter="regular" id="vfilter-btn-reg">📘 Обычные (<span id="vfilter-count-reg">0</span>)</button>
+      </div>
+
+      <div style="flex: 1; min-width: 240px; max-width: 440px; position: relative;">
+        <input type="text" id="verb-filter-input" class="filter-input" placeholder="🔍 Поиск глагола по инфинитиву, переводу или формам…" style="margin-bottom: 0; padding-right: 32px; width: 100%;">
+        <button type="button" id="clear-verb-search-btn" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 4px;">✕</button>
+      </div>
+    </div>
+
+    <!-- Batch Actions Bar for Verbs -->
+    <div class="batch-actions-bar" id="verbs-batch-actions-bar" style="display: none; margin-bottom: 14px; padding: 10px 16px; background: var(--settings-bg); border: 1px solid var(--border); border-radius: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+      <div style="font-size: 13px; font-weight: 600;">
+        Выбрано: <span id="verbs-selected-count" style="color: var(--accent); font-weight: 700;">0</span> глаголов
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button type="button" class="small-btn danger-btn" id="verbs-batch-delete-btn">🗑️ Удалить выбранные</button>
+        <button type="button" class="small-btn ghost-btn" id="verbs-batch-cancel-btn">✕ Снять выбор</button>
+      </div>
+    </div>
+
+    <!-- Verbs Table Card -->
+    <div class="analytics-panel" style="padding: 0; overflow: hidden;">
+      <div class="word-table-wrap" style="max-height: 65vh; border: none; border-radius: 0;">
+        <table id="verbs-table">
+          <thead>
+            <tr style="background: var(--settings-bg);">
+              <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-verbs" title="Выбрать все"></th>
+              <th style="min-width: 140px;">Инфинитив</th>
+              <th style="min-width: 160px;">Перевод</th>
+              <th style="min-width: 110px;">Тип</th>
+              <th style="min-width: 110px;">3 л. Präsens</th>
+              <th style="min-width: 110px;">Präteritum</th>
+              <th style="min-width: 150px;">Partizip II</th>
+              <th style="min-width: 130px;">Категория</th>
+              <th style="width: 110px; text-align: right;">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="verbs-tbody">
+            <!-- Verbs rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+      <p class="empty-note" id="verbs-empty-note" style="display: none; padding: 32px 16px; text-align: center; color: var(--text-muted); font-size: 14px;">
+        Глаголы не найдены
+      </p>
+    </div>
+  </div>
   <div class="admin-tab-content" id="tab-analytics">
     
     <!-- Top Stat Metric Cards -->
@@ -384,8 +457,9 @@
 
       <!-- Verb-specific forms section -->
       <div style="padding: 10px 12px; background: var(--settings-bg); border-radius: 8px; border: 1px solid var(--border);">
-        <div style="font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-          <span>⚡ Формы глагола (для изучения глаголов):</span>
+        <div style="font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <span>⚡ Формы глагола (для глаголов):</span>
+          <button type="button" id="word-modal-verb-autofill-btn" class="small-btn ghost-btn" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;" title="Определить формы спряжения">🪄 Автозаполнить</button>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
           <div>
@@ -419,6 +493,109 @@
     <div style="display: flex; justify-content: flex-end; gap: 8px;">
       <button type="button" class="ghost-btn" id="word-modal-cancel-btn">Отмена</button>
       <button type="button" id="word-modal-save-btn" style="font-weight: 600;">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dedicated Add / Edit Verb Modal -->
+<div class="modal-overlay hidden" id="verb-modal">
+  <div class="modal-box" style="max-width: 540px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <h2 id="verb-modal-title" style="margin: 0; font-size: 18px; font-weight: 700;">Добавление глагола</h2>
+      <button type="button" id="verb-modal-close-btn" class="js-modal-close ghost-btn" style="padding: 4px 8px; border: none; font-size: 16px;">✕</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px;">
+      <!-- Row 1: Infinitive & Auto-fill -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <label for="verb-modal-de" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Инфинитив (Infinitiv) *</label>
+          <button type="button" id="verb-modal-autofill-btn" class="small-btn ghost-btn" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Определить формы спряжения и вспомогательный глагол">
+            🪄 Автозаполнить формы
+          </button>
+        </div>
+        <input type="text" id="verb-modal-de" placeholder="напр. sprechen, machen, fahren" style="width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-size: 14px;" autocomplete="off">
+      </div>
+
+      <!-- Row 2: Translation -->
+      <div>
+        <label for="verb-modal-ru" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">Перевод на русский *</label>
+        <input type="text" id="verb-modal-ru" placeholder="напр. говорить, разговаривать" style="width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-size: 14px;" autocomplete="off">
+      </div>
+
+      <!-- Row 3: Verb Type and Category -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <label for="verb-modal-type" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">Тип глагола:</label>
+          <select id="verb-modal-type" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+            <option value="irregular">⚡ Неправильный (сильный)</option>
+            <option value="regular">📘 Обычный (слабый)</option>
+          </select>
+        </div>
+        <div>
+          <label for="verb-modal-category" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">Раздел / Категория:</label>
+          <select id="verb-modal-category" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+            <!-- Filled dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Verb Principal Forms Box -->
+      <div style="padding: 12px 14px; background: var(--settings-bg); border-radius: 10px; border: 1px solid var(--border);">
+        <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+          <span>📚 Основные формы (3 формы + Präsens)</span>
+          <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">A1–B1</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <div>
+            <label for="verb-modal-praesens" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">3 л. ед.ч. (Präsens er/sie/es):</label>
+            <input type="text" id="verb-modal-praesens" placeholder="er spricht / er macht" style="width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+          </div>
+          <div>
+            <label for="verb-modal-praeteritum" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">Präteritum:</label>
+            <input type="text" id="verb-modal-praeteritum" placeholder="sprach / machte / ging" style="width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 130px 1fr; gap: 10px;">
+          <div>
+            <label for="verb-modal-hilfsverb" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">Hilfsverb:</label>
+            <select id="verb-modal-hilfsverb" style="width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+              <option value="haben">hat (haben)</option>
+              <option value="sein">ist (sein)</option>
+            </select>
+          </div>
+          <div>
+            <label for="verb-modal-partizip2" style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">Partizip II:</label>
+            <input type="text" id="verb-modal-partizip2" placeholder="gesprochen / gemacht / gegangen" style="width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); font-size: 13px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Conjugation Preview in Präsens -->
+      <div id="verb-modal-conjugation-preview" style="padding: 10px 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Спряжение в Präsens:</span>
+          <span id="verb-modal-vowel-note" style="font-size: 11px; color: #7c3aed; font-weight: 500;"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12px;" id="verb-modal-forms-grid">
+          <div><span style="color: var(--text-muted);">ich</span> <b id="vpreview-ich">-</b></div>
+          <div><span style="color: var(--text-muted);">du</span> <b id="vpreview-du">-</b></div>
+          <div><span style="color: var(--text-muted);">er/sie</span> <b id="vpreview-er">-</b></div>
+          <div><span style="color: var(--text-muted);">wir</span> <b id="vpreview-wir">-</b></div>
+          <div><span style="color: var(--text-muted);">ihr</span> <b id="vpreview-ihr">-</b></div>
+          <div><span style="color: var(--text-muted);">sie/Sie</span> <b id="vpreview-sie">-</b></div>
+        </div>
+      </div>
+
+      <!-- Live Duplicate Warning Banner inside verb modal -->
+      <div id="verb-modal-dup-banner" style="display: none; padding: 8px 12px; background: rgba(220, 53, 69, 0.1); border: 1px solid var(--danger); border-radius: 8px; font-size: 12px; color: var(--danger);"></div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button type="button" class="ghost-btn" id="verb-modal-cancel-btn">Отмена</button>
+      <button type="button" id="verb-modal-save-btn" style="background: var(--accent); color: #fff; font-weight: 600; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">Сохранить глагол</button>
     </div>
   </div>
 </div>
