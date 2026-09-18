@@ -97,11 +97,7 @@
   <!-- ===== TIME PANEL ===== -->
   <div class="panel" id="panel-time">
     <div class="card">
-      <div class="quiz-toolbar" style="display: flex; gap: 8px; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-        <div class="time-view-toggle">
-          <button type="button" class="time-view-btn active" id="time-view-quiz-btn" data-view="quiz">✍️ Ввод ответа</button>
-          <button type="button" class="time-view-btn" id="time-view-pres-btn" data-view="presentation">👁️ Презентация</button>
-        </div>
+      <div class="quiz-toolbar" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
         <button type="button" class="settings-trigger" data-modal="time-settings-modal">⚙ Параметры</button>
       </div>
 
@@ -109,33 +105,18 @@
         <p class="prev-result" id="time-prev-result" aria-live="polite"></p>
         <p class="qmode" id="time-qmode">Время → немецкие слова</p>
         
-        <!-- Question display container (Analog clock or Digital display or German phrase) -->
+        <!-- Question display container (Analog clock + Digital display OR German phrase) -->
         <div id="time-question-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 155px; margin: 4px 0;">
           <div id="time-question" class="question">—</div>
         </div>
 
-        <!-- Quiz Typing Mode Section -->
-        <div id="time-quiz-input-section" style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
-          <input class="answer-input" id="time-answer" type="text" placeholder="Введите ответ" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Ваш ответ">
-          <div class="umlauts" id="time-umlauts">
-            <button type="button" class="umlaut-btn" data-target="time-answer" data-char="ä" aria-label="Вставить ä">ä</button>
-            <button type="button" class="umlaut-btn" data-target="time-answer" data-char="ö" aria-label="Вставить ö">ö</button>
-            <button type="button" class="umlaut-btn" data-target="time-answer" data-char="ü" aria-label="Вставить ü">ü</button>
-            <button type="button" class="umlaut-btn" data-target="time-answer" data-char="ß" aria-label="Вставить ß">ß</button>
-          </div>
-          <div class="buttons">
-            <button id="time-check-btn">Проверить</button>
-            <button id="time-next-btn">Дальше ↦</button>
-          </div>
-        </div>
-
-        <!-- Presentation Flashcard Mode Section -->
-        <div id="time-presentation-section" style="display: none; flex-direction: column; align-items: center; gap: 12px; width: 100%;">
+        <!-- Presentation Flashcard Section -->
+        <div id="time-presentation-section" style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;">
           <button type="button" id="time-reveal-btn" class="pres-reveal-btn">
-            👁️ Открыть ответ
+            👁️ Показать ответ
           </button>
           
-          <div id="time-pres-answer-card" class="pres-answer-card" style="display: none; width: 100%; max-width: 360px;">
+          <div id="time-pres-answer-card" class="pres-answer-card" style="display: none; width: 100%; max-width: 380px;">
             <!-- Filled dynamically -->
           </div>
 
@@ -148,9 +129,7 @@
       </div>
 
       <div class="scorebar">
-        <span>Верно: <b id="time-score-correct">0</b></span>
-        <span>Всего: <b id="time-score-total">0</b></span>
-        <span>Точность: <b id="time-score-percent">0%</b></span>
+        <span>Пройдено карточек: <b id="time-score-total">0</b></span>
         <span>Серия: <b id="time-streak">0</b></span>
         <span>Лучшая серия: <b id="time-best-streak">0</b></span>
         <button class="reset-btn" id="time-reset-btn">Сбросить счёт</button>
@@ -367,16 +346,6 @@
     </div>
 
     <div class="settings">
-      <p class="label">Интервал минут</p>
-      <div class="row">
-        <label><input type="radio" name="time-step" class="time-step-radio" value="5" checked>Шаг 5 минут (Viertel, halb, nach, vor — разговорный стандарт)</label>
-      </div>
-      <div class="row">
-        <label><input type="radio" name="time-step" class="time-step-radio" value="1">Любые минуты (с шагом 1 минута)</label>
-      </div>
-    </div>
-
-    <div class="settings">
       <p class="label">Формат цифрового времени</p>
       <div class="row">
         <label><input type="radio" name="time-hour-format" class="time-hour-radio" value="24" checked>24-часовой (напр. 14:45)</label>
@@ -387,7 +356,6 @@
     <div class="settings">
       <p class="label">Отображение</p>
       <div class="row" style="flex-direction:column; align-items:flex-start; gap:10px;">
-        <label><input type="checkbox" class="umlaut-toggle-cb">Кнопки умляутов (ä, ö, ü, ß)</label>
         <label><input type="checkbox" class="stats-disable-cb">Отключить панель статистики</label>
       </div>
     </div>
