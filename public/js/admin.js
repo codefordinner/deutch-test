@@ -53,6 +53,10 @@
   const wordModalPlural = document.getElementById("word-modal-plural");
   const wordModalFeminine = document.getElementById("word-modal-feminine");
   const wordModalFemininePlural = document.getElementById("word-modal-feminine-plural");
+  const wordModalPraeteritum = document.getElementById("word-modal-praeteritum");
+  const wordModalPraesens = document.getElementById("word-modal-praesens");
+  const wordModalHilfsverb = document.getElementById("word-modal-hilfsverb");
+  const wordModalPartizip2 = document.getElementById("word-modal-partizip2");
   const wordModalDupBanner = document.getElementById("word-modal-dup-banner");
   const wordModalCancelBtn = document.getElementById("word-modal-cancel-btn");
   const wordModalSaveBtn = document.getElementById("word-modal-save-btn");
@@ -411,6 +415,15 @@
       if (word.femininePlural) {
         extraBadgesHtml += `<span class="form-badge fem-plural-badge" title="Множественное число женского рода">мн.ж: ${escapeHtml(word.femininePlural)}</span>`;
       }
+      if (word.praeteritum || word.partizip2) {
+        const aux = (word.hilfsverb === "sein" || word.hilfsverb === "ist") ? "ist " : "hat ";
+        const fullP2 = word.partizip2 ? aux + word.partizip2 : "";
+        const parts = [word.praeteritum, fullP2].filter(Boolean).join(", ");
+        extraBadgesHtml += `<span class="form-badge" style="background: rgba(139, 92, 246, 0.12); color: #7c3aed;" title="Формы глагола">⚡ ${escapeHtml(parts)}</span>`;
+      }
+      if (word.praesens) {
+        extraBadgesHtml += `<span class="form-badge" style="background: rgba(14, 165, 233, 0.12); color: #0284c7;" title="3-е лицо ед.ч. Präsens">er ${escapeHtml(word.praesens)}</span>`;
+      }
 
       let categoryCellHtml = "";
       if (isGlobal) {
@@ -607,6 +620,10 @@
       wordModalPlural.value = word.plural || "";
       wordModalFeminine.value = word.feminine || "";
       if (wordModalFemininePlural) wordModalFemininePlural.value = word.femininePlural || "";
+      if (wordModalPraeteritum) wordModalPraeteritum.value = word.praeteritum || "";
+      if (wordModalPraesens) wordModalPraesens.value = word.praesens || "";
+      if (wordModalHilfsverb) wordModalHilfsverb.value = (word.hilfsverb === "sein" || word.hilfsverb === "ist") ? "sein" : "haben";
+      if (wordModalPartizip2) wordModalPartizip2.value = word.partizip2 || "";
     } else {
       wordModalTitle.textContent = "Добавление нового слова";
       if (currentCategoryId !== "all") {
@@ -617,6 +634,10 @@
       wordModalPlural.value = "";
       wordModalFeminine.value = "";
       if (wordModalFemininePlural) wordModalFemininePlural.value = "";
+      if (wordModalPraeteritum) wordModalPraeteritum.value = "";
+      if (wordModalPraesens) wordModalPraesens.value = "";
+      if (wordModalHilfsverb) wordModalHilfsverb.value = "haben";
+      if (wordModalPartizip2) wordModalPartizip2.value = "";
     }
 
     wordModal.classList.remove("hidden");
@@ -674,6 +695,10 @@
     const plural = wordModalPlural.value.trim() || null;
     const feminine = wordModalFeminine.value.trim() || null;
     const femininePlural = wordModalFemininePlural ? (wordModalFemininePlural.value.trim() || null) : null;
+    const praeteritum = wordModalPraeteritum ? (wordModalPraeteritum.value.trim() || null) : null;
+    const praesens = wordModalPraesens ? (wordModalPraesens.value.trim() || null) : null;
+    const hilfsverb = wordModalHilfsverb ? (wordModalHilfsverb.value || "haben") : null;
+    const partizip2 = wordModalPartizip2 ? (wordModalPartizip2.value.trim() || null) : null;
 
     if (!categoryId) {
       showToast("Выберите категорию для слова", "error");
@@ -687,20 +712,24 @@
     }
 
     try {
+      const payload = {
+        categoryId,
+        de,
+        ru,
+        plural,
+        feminine,
+        femininePlural,
+        praeteritum,
+        praesens,
+        hilfsverb,
+        partizip2
+      };
+
       if (editingWord) {
-        await ApiClient.put(`/api/words/${editingWord.id}`, {
-          categoryId,
-          de,
-          ru,
-          plural,
-          feminine,
-          femininePlural
-        });
+        await ApiClient.put(`/api/words/${editingWord.id}`, payload);
         showToast(`Слово «${de}» успешно обновлено!`, "success");
       } else {
-        await ApiClient.createWord
-          ? ApiClient.createWord({ categoryId, de, ru, plural, feminine, femininePlural })
-          : ApiClient.post("/api/words", { categoryId, de, ru, plural, feminine, femininePlural });
+        await (ApiClient.createWord ? ApiClient.createWord(payload) : ApiClient.post("/api/words", payload));
         showToast(`Слово «${de}» добавлено!`, "success");
       }
 
@@ -713,7 +742,16 @@
   });
 
   // Enter to save inside word modal
-  [wordModalDe, wordModalRu, wordModalPlural, wordModalFeminine, wordModalFemininePlural].filter(Boolean).forEach((input) => {
+  [
+    wordModalDe,
+    wordModalRu,
+    wordModalPlural,
+    wordModalFeminine,
+    wordModalFemininePlural,
+    wordModalPraeteritum,
+    wordModalPraesens,
+    wordModalPartizip2
+  ].filter(Boolean).forEach((input) => {
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         wordModalSaveBtn.click();

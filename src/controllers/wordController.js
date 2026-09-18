@@ -27,6 +27,10 @@ class WordController {
     const plural = req.body.plural !== undefined ? (req.body.plural || "").trim() : null;
     const feminine = req.body.feminine !== undefined ? (req.body.feminine || "").trim() : null;
     const femininePlural = req.body.femininePlural !== undefined ? (req.body.femininePlural || "").trim() : null;
+    const praeteritum = req.body.praeteritum !== undefined ? (req.body.praeteritum || "").trim() : null;
+    const partizip2 = req.body.partizip2 !== undefined ? (req.body.partizip2 || "").trim() : null;
+    const hilfsverb = req.body.hilfsverb !== undefined ? (req.body.hilfsverb || "").trim() : null;
+    const praesens = req.body.praesens !== undefined ? (req.body.praesens || "").trim() : null;
     const force = req.query.force === "true" || req.body.force === true;
 
     if (!categoryId) {
@@ -38,7 +42,12 @@ class WordController {
     }
 
     try {
-      const word = await wordService.createWord(categoryId, de, ru, plural, feminine, femininePlural, force);
+      const word = await wordService.createWord(categoryId, de, ru, plural, feminine, femininePlural, force, {
+        praeteritum,
+        partizip2,
+        hilfsverb,
+        praesens
+      });
       res.status(201).json(word);
     } catch (error) {
       if (error.status === 404) {
@@ -61,6 +70,10 @@ class WordController {
     const plural = req.body.plural !== undefined ? (req.body.plural || "").trim() : undefined;
     const feminine = req.body.feminine !== undefined ? (req.body.feminine || "").trim() : undefined;
     const femininePlural = req.body.femininePlural !== undefined ? (req.body.femininePlural || "").trim() : undefined;
+    const praeteritum = req.body.praeteritum !== undefined ? (req.body.praeteritum || "").trim() : undefined;
+    const partizip2 = req.body.partizip2 !== undefined ? (req.body.partizip2 || "").trim() : undefined;
+    const hilfsverb = req.body.hilfsverb !== undefined ? (req.body.hilfsverb || "").trim() : undefined;
+    const praesens = req.body.praesens !== undefined ? (req.body.praesens || "").trim() : undefined;
     const categoryId = req.body.categoryId;
     const force = req.query.force === "true" || req.body.force === true;
 
@@ -69,7 +82,12 @@ class WordController {
     }
 
     try {
-      const word = await wordService.updateWord(req.params.id, de, ru, plural, feminine, femininePlural, force, categoryId);
+      const word = await wordService.updateWord(req.params.id, de, ru, plural, feminine, femininePlural, force, categoryId, {
+        praeteritum,
+        partizip2,
+        hilfsverb,
+        praesens
+      });
       res.json(word);
     } catch (error) {
       if (error.status === 409) {

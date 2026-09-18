@@ -21,6 +21,10 @@ model Word {
   plural         String?
   feminine       String?
   femininePlural String?
+  praeteritum    String?
+  partizip2      String?
+  hilfsverb      String?
+  praesens       String?
   categoryId     String
   category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())

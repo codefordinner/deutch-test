@@ -38,6 +38,10 @@ class WordService {
       plural: w.plural,
       feminine: w.feminine,
       femininePlural: w.femininePlural,
+      praeteritum: w.praeteritum,
+      partizip2: w.partizip2,
+      hilfsverb: w.hilfsverb,
+      praesens: w.praesens,
       categoryId: w.categoryId,
       categoryName: w.category ? w.category.name : "Без категории"
     }));
@@ -48,7 +52,7 @@ class WordService {
     };
   }
 
-  async createWord(categoryId, de, ru, plural = null, feminine = null, femininePlural = null, force = false) {
+  async createWord(categoryId, de, ru, plural = null, feminine = null, femininePlural = null, force = false, extra = {}) {
     if (!prisma) throw new Error("База данных недоступна");
 
     const categoryExists = await prisma.category.findUnique({
@@ -74,6 +78,10 @@ class WordService {
     const cleanPlural = plural && String(plural).trim() ? String(plural).trim() : null;
     const cleanFeminine = feminine && String(feminine).trim() ? String(feminine).trim() : null;
     const cleanFemininePlural = femininePlural && String(femininePlural).trim() ? String(femininePlural).trim() : null;
+    const cleanPraeteritum = extra.praeteritum && String(extra.praeteritum).trim() ? String(extra.praeteritum).trim() : null;
+    const cleanPartizip2 = extra.partizip2 && String(extra.partizip2).trim() ? String(extra.partizip2).trim() : null;
+    const cleanHilfsverb = extra.hilfsverb && String(extra.hilfsverb).trim() ? String(extra.hilfsverb).trim() : null;
+    const cleanPraesens = extra.praesens && String(extra.praesens).trim() ? String(extra.praesens).trim() : null;
 
     return await prisma.word.create({
       data: {
@@ -82,12 +90,16 @@ class WordService {
         plural: cleanPlural,
         feminine: cleanFeminine,
         femininePlural: cleanFemininePlural,
+        praeteritum: cleanPraeteritum,
+        partizip2: cleanPartizip2,
+        hilfsverb: cleanHilfsverb,
+        praesens: cleanPraesens,
         categoryId
       }
     });
   }
 
-  async updateWord(id, de, ru, plural = undefined, feminine = undefined, femininePlural = undefined, force = false, categoryId = undefined) {
+  async updateWord(id, de, ru, plural = undefined, feminine = undefined, femininePlural = undefined, force = false, categoryId = undefined, extra = {}) {
     if (!prisma) throw new Error("База данных недоступна");
 
     if (de && ru && !force) {
@@ -112,6 +124,18 @@ class WordService {
     }
     if (femininePlural !== undefined) {
       updateData.femininePlural = femininePlural && String(femininePlural).trim() ? String(femininePlural).trim() : null;
+    }
+    if (extra.praeteritum !== undefined) {
+      updateData.praeteritum = extra.praeteritum && String(extra.praeteritum).trim() ? String(extra.praeteritum).trim() : null;
+    }
+    if (extra.partizip2 !== undefined) {
+      updateData.partizip2 = extra.partizip2 && String(extra.partizip2).trim() ? String(extra.partizip2).trim() : null;
+    }
+    if (extra.hilfsverb !== undefined) {
+      updateData.hilfsverb = extra.hilfsverb && String(extra.hilfsverb).trim() ? String(extra.hilfsverb).trim() : null;
+    }
+    if (extra.praesens !== undefined) {
+      updateData.praesens = extra.praesens && String(extra.praesens).trim() ? String(extra.praesens).trim() : null;
     }
     if (categoryId !== undefined && categoryId !== null) {
       updateData.categoryId = categoryId;
@@ -221,6 +245,10 @@ class WordService {
       const cleanPlural = item.plural && String(item.plural).trim() ? String(item.plural).trim() : null;
       const cleanFeminine = item.feminine && String(item.feminine).trim() ? String(item.feminine).trim() : null;
       const cleanFemininePlural = (item.femininePlural || item.feminine_plural) && String(item.femininePlural || item.feminine_plural).trim() ? String(item.femininePlural || item.feminine_plural).trim() : null;
+      const cleanPraeteritum = item.praeteritum && String(item.praeteritum).trim() ? String(item.praeteritum).trim() : null;
+      const cleanPartizip2 = item.partizip2 && String(item.partizip2).trim() ? String(item.partizip2).trim() : null;
+      const cleanHilfsverb = item.hilfsverb && String(item.hilfsverb).trim() ? String(item.hilfsverb).trim() : null;
+      const cleanPraesens = item.praesens && String(item.praesens).trim() ? String(item.praesens).trim() : null;
 
       await prisma.word.create({
         data: {
@@ -229,6 +257,10 @@ class WordService {
           plural: cleanPlural,
           feminine: cleanFeminine,
           femininePlural: cleanFemininePlural,
+          praeteritum: cleanPraeteritum,
+          partizip2: cleanPartizip2,
+          hilfsverb: cleanHilfsverb,
+          praesens: cleanPraesens,
           categoryId: catId
         }
       });
