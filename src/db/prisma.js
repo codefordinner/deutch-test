@@ -17,14 +17,32 @@ function initializeDatabase() {
   if (process.env.PRISMA_NO_INIT === "true") {
     return;
   }
+  const rootDir = path.join(__dirname, "..", "..");
+
+  // Safe check: if the SQLite database file exists, do NOT run push, migration or seeding
+  let dbExists = false;
+  if (config.databaseUrl.startsWith("file:")) {
+    const relativePath = config.databaseUrl.slice(5);
+    const dbFileResolved = path.resolve(rootDir, relativePath);
+    if (fs.existsSync(dbFileResolved)) {
+      dbExists = true;
+    }
+  }
+
+  if (dbExists) {
+    console.log("[Database Init] Database file exists. Skipping migrations and seeding to prevent data overrides.");
+    return;
+  }
+
   try {
-    const rootDir = path.join(__dirname, "..", "..");
     const prismaDir = path.join(rootDir, "prisma");
     if (!fs.existsSync(prismaDir)) {
       fs.mkdirSync(prismaDir, { recursive: true });
     }
 
-    // Always run db push to ensure schema columns and client are up to date
+    console.log("[Database Init] Database file not found. Running initial setup...");
+
+    // Run db push only for clean installs
     execSync("npx prisma db push --accept-data-loss", {
       stdio: "ignore",
       cwd: rootDir,
