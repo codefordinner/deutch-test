@@ -192,11 +192,11 @@
       if (current.dir === "n2w") {
         elements.modeEl.textContent = "Число → слово";
         elements.qEl.textContent = String(current.number);
-        elements.ansEl.placeholder = "Напишите словом по-немецки";
+        elements.ansEl.placeholder = "";
       } else {
         elements.modeEl.textContent = "Слово → число";
         elements.qEl.textContent = numberToGerman(current.number);
-        elements.ansEl.placeholder = "Введите цифрами";
+        elements.ansEl.placeholder = "";
       }
     },
 

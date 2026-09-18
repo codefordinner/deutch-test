@@ -515,36 +515,31 @@
           qHtml += '</div>';
         }
         elements.qEl.innerHTML = qHtml;
-        elements.ansEl.placeholder = "Перевод на русский";
+        elements.ansEl.placeholder = "";
       } else {
         var instructionHtml = "";
-        var placeholder = "По-немецки";
 
         if (current.formTarget === "plural") {
           instructionHtml = '<div class="form-instruction plural-instruction">' +
             '👉 Введите форму <b>множественного числа</b>' +
             '</div>';
-          placeholder = "Множественное число";
         } else if (current.formTarget === "feminine") {
           instructionHtml = '<div class="form-instruction fem-instruction">' +
             '👉 Введите форму <b>женского рода</b> (ед.ч.)' +
             '</div>';
-          placeholder = "Женский род (ед.ч.)";
         } else if (current.formTarget === "femininePlural") {
           instructionHtml = '<div class="form-instruction fem-plural-instruction">' +
             '👉 Введите форму <b>женского рода во множественном числе</b>' +
             '</div>';
-          placeholder = "Множественное число (ж.р.)";
         } else if (current.word.plural || current.word.feminine || current.word.femininePlural) {
           instructionHtml = '<div class="form-instruction singular-instruction">' +
             '👉 Введите форму <b>единственного числа</b> (основную форму)' +
             '</div>';
-          placeholder = "Единственное число";
         }
 
         elements.modeEl.innerHTML = "Русский → немецкий" + srsBadge;
         elements.qEl.innerHTML = '<div style="font-size: 26px; font-weight: 600;">' + current.word.ru + '</div>' + instructionHtml;
-        elements.ansEl.placeholder = placeholder;
+        elements.ansEl.placeholder = "";
       }
     },
 

@@ -1065,12 +1065,10 @@
     if (!w) return false;
     const catName = (w.category?.name || "").toLowerCase();
     const catId = w.categoryId || "";
-    const de = (w.de || "").trim().toLowerCase();
 
-    if (catId === "cat_irregular_verbs" || catId === "cat_regular_verbs" || catId === "cat_verbs") return true;
+    if (catId === "cat_irregular_verbs" || catId === "cat_regular_verbs") return true;
     if (catName.includes("глагол") || catName.includes("verb")) return true;
     if (w.praeteritum || w.partizip2 || w.praesens || w.hilfsverb) return true;
-    if (KNOWN_VERBS_DICT[de]) return true;
 
     return false;
   }

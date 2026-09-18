@@ -310,6 +310,11 @@
     dom.srsMastered = document.getElementById("verb-srs-mastered-count");
     dom.srsDueList = document.getElementById("verb-srs-due-list");
     dom.srsResetBtn = document.getElementById("verb-reset-srs-btn");
+
+    // Dynamic count badges in parameters modal
+    dom.countIrreg = document.getElementById("verb-count-irreg");
+    dom.countReg = document.getElementById("verb-count-reg");
+    dom.countAll = document.getElementById("verb-count-all");
   }
 
   // ==================== SRS STORAGE ENGINE ====================
@@ -377,8 +382,8 @@
       renderCheatsheet();
       nextQuestion();
     } catch (err) {
-      console.warn("Could not fetch verbs from API, using built-in library:", err);
-      fallbackToBuiltInVerbs();
+      console.error("Could not fetch verbs from API:", err);
+      classifyVerbs([]);
       applyVerbTypeFilter(currentVerbType);
       renderCheatsheet();
       nextQuestion();
@@ -390,123 +395,96 @@
     irregularVerbs = [];
     regularVerbs = [];
 
+    var seen = new Map();
+
     (words || []).forEach(function (w) {
+      if (!w || !w.de) return;
       var catName = (w.category && w.category.name) ? w.category.name.toLowerCase() : "";
+      var catId = w.categoryId || "";
       var de = (w.de || "").trim();
-      var isVerbCategory = catName.includes("глагол") || w.praeteritum || w.partizip2 || IRREGULAR_CONJUGATIONS[de.toLowerCase()];
+      var deLower = de.toLowerCase();
 
-      if (!isVerbCategory) return;
+      var isVerb = (
+        catId === "cat_irregular_verbs" ||
+        catId === "cat_regular_verbs" ||
+        catName.includes("глагол") ||
+        catName.includes("verb") ||
+        Boolean(w.praeteritum || w.partizip2 || w.praesens || w.hilfsverb)
+      );
 
-      var conj = getConjugation(de);
-      var item = {
-        id: w.id || "verb_" + de,
-        de: de,
-        ru: w.ru,
-        conjugation: conj,
-        isIrregular: conj.isIrregular || catName.includes("неправильн")
-      };
+      if (!isVerb) return;
 
-      allVerbs.push(item);
-      if (item.isIrregular) {
-        irregularVerbs.push(item);
+      // Deduplicate by German infinitive, preferring entries with forms
+      if (seen.has(deLower)) {
+        var prev = seen.get(deLower);
+        if (!prev.praeteritum && w.praeteritum) {
+          seen.set(deLower, w);
+        }
       } else {
-        regularVerbs.push(item);
+        seen.set(deLower, w);
       }
     });
 
-    if (allVerbs.length === 0) {
-      fallbackToBuiltInVerbs();
-    }
-  }
+    seen.forEach(function (w) {
+      var de = (w.de || "").trim();
+      var deLower = de.toLowerCase();
+      var catName = (w.category && w.category.name) ? w.category.name.toLowerCase() : "";
+      var catId = w.categoryId || "";
 
-  function fallbackToBuiltInVerbs() {
-    allVerbs = [];
-    irregularVerbs = [];
-    regularVerbs = [];
+      var isIrreg = (
+        catId === "cat_irregular_verbs" ||
+        catName.includes("неправильн") ||
+        Boolean(IRREGULAR_CONJUGATIONS[deLower])
+      );
 
-    var list = [
-      { de: "sein", ru: "быть, являться", irreg: true },
-      { de: "haben", ru: "иметь", irreg: true },
-      { de: "werden", ru: "становиться", irreg: true },
-      { de: "gehen", ru: "идти, ходить", irreg: true },
-      { de: "kommen", ru: "приходить, приезжать", irreg: true },
-      { de: "sehen", ru: "видеть, смотреть", irreg: true },
-      { de: "geben", ru: "давать", irreg: true },
-      { de: "nehmen", ru: "брать, взять", irreg: true },
-      { de: "sprechen", ru: "говорить, разговаривать", irreg: true },
-      { de: "fahren", ru: "ехать, водить", irreg: true },
-      { de: "lesen", ru: "читать", irreg: true },
-      { de: "schreiben", ru: "писать", irreg: true },
-      { de: "finden", ru: "находить", irreg: true },
-      { de: "wissen", ru: "знать", irreg: true },
-      { de: "bringen", ru: "приносить", irreg: true },
-      { de: "denken", ru: "думать", irreg: true },
-      { de: "bleiben", ru: "оставаться", irreg: true },
-      { de: "trinken", ru: "пить", irreg: true },
-      { de: "essen", ru: "есть, кушать", irreg: true },
-      { de: "schlafen", ru: "спать", irreg: true },
-      { de: "laufen", ru: "бегать, идти", irreg: true },
-      { de: "helfen", ru: "помогать", irreg: true },
-      { de: "treffen", ru: "встречать, встречаться", irreg: true },
-      { de: "beginnen", ru: "начинать", irreg: true },
-      { de: "verstehen", ru: "понимать", irreg: true },
-      { de: "tragen", ru: "носить", irreg: true },
-      { de: "stehen", ru: "стоять", irreg: true },
-      { de: "liegen", ru: "лежать", irreg: true },
-      { de: "sitzen", ru: "сидеть", irreg: true },
-      { de: "fliegen", ru: "летать", irreg: true },
-      { de: "schwimmen", ru: "плавать", irreg: true },
-      { de: "verlieren", ru: "терять, проигрывать", irreg: true },
-      { de: "gewinnen", ru: "выигрывать, побеждать", irreg: true },
-      { de: "schließen", ru: "закрывать", irreg: true },
-      { de: "ziehen", ru: "тянуть, переезжать", irreg: true },
-      { de: "rufen", ru: "звать, кричать", irreg: true },
-      { de: "kennen", ru: "знать, быть знакомым", irreg: true },
-      { de: "waschen", ru: "мыть, стирать", irreg: true },
-      { de: "vergessen", ru: "забывать", irreg: true },
-      { de: "einladen", ru: "приглашать", irreg: true },
-      // Regular
-      { de: "machen", ru: "делать", irreg: false },
-      { de: "lernen", ru: "учить, учиться", irreg: false },
-      { de: "arbeiten", ru: "работать", irreg: false },
-      { de: "wohnen", ru: "жить, проживать", irreg: false },
-      { de: "kaufen", ru: "покупать", irreg: false },
-      { de: "hören", ru: "слушать, слышать", irreg: false },
-      { de: "fragen", ru: "спрашивать", irreg: false },
-      { de: "antworten", ru: "отвечать", irreg: false },
-      { de: "suchen", ru: "искать", irreg: false },
-      { de: "brauchen", ru: "нуждаться, требоваться", irreg: false },
-      { de: "spielen", ru: "играть", irreg: false },
-      { de: "leben", ru: "жить", irreg: false },
-      { de: "lieben", ru: "любить", irreg: false },
-      { de: "kochen", ru: "готовить еду", irreg: false },
-      { de: "reisen", ru: "путешествовать", irreg: false },
-      { de: "warten", ru: "ждать", irreg: false },
-      { de: "öffnen", ru: "открывать", irreg: false },
-      { de: "glauben", ru: "верить, полагать", irreg: false },
-      { de: "hoffen", ru: "надеяться", irreg: false },
-      { de: "erzählen", ru: "рассказывать", irreg: false },
-      { de: "bezahlen", ru: "оплачивать, платить", irreg: false },
-      { de: "bestellen", ru: "заказывать", irreg: false },
-      { de: "feiern", ru: "праздновать, отмечать", irreg: false },
-      { de: "putzen", ru: "чистить, убирать", irreg: false },
-      { de: "tanzen", ru: "танцевать", irreg: false },
-      { de: "sagen", ru: "говорить, сказать", irreg: false }
-    ];
+      // Build 6 Präsens forms
+      var forms;
+      var vowelChange = null;
 
-    list.forEach(function (item, index) {
-      var conj = getConjugation(item.de);
+      if (IRREGULAR_CONJUGATIONS[deLower]) {
+        var baseConj = IRREGULAR_CONJUGATIONS[deLower];
+        forms = Object.assign({}, baseConj.forms);
+        vowelChange = baseConj.vowelChange || null;
+      } else {
+        forms = conjugateRegular(deLower);
+      }
+
+      // If DB has explicit praesens, apply to er
+      if (w.praesens) {
+        var cleanP3 = w.praesens.replace(/^(er|sie|es)\s+/i, "").trim();
+        if (cleanP3) {
+          forms.er = cleanP3;
+        }
+      }
+
       var verbObj = {
-        id: "built_in_" + index + "_" + item.de,
-        de: item.de,
-        ru: item.ru,
-        conjugation: conj,
-        isIrregular: item.irreg
+        id: w.id || "verb_" + deLower,
+        de: de,
+        ru: w.ru || "",
+        praesens: w.praesens || forms.er || "",
+        praeteritum: w.praeteritum || "",
+        partizip2: w.partizip2 || "",
+        hilfsverb: w.hilfsverb || "haben",
+        conjugation: {
+          forms: forms,
+          vowelChange: vowelChange,
+          isIrregular: isIrreg
+        },
+        isIrregular: isIrreg
       };
+
       allVerbs.push(verbObj);
-      if (item.irreg) irregularVerbs.push(verbObj);
-      else regularVerbs.push(verbObj);
+      if (isIrreg) {
+        irregularVerbs.push(verbObj);
+      } else {
+        regularVerbs.push(verbObj);
+      }
     });
+
+    // Update dynamic count badges in settings modal
+    if (dom.countIrreg) dom.countIrreg.textContent = irregularVerbs.length;
+    if (dom.countReg) dom.countReg.textContent = regularVerbs.length;
+    if (dom.countAll) dom.countAll.textContent = allVerbs.length;
   }
 
   function applyVerbTypeFilter(type) {
@@ -516,9 +494,9 @@
     } catch (e) {}
 
     if (type === "irregular") {
-      activePool = irregularVerbs.length > 0 ? irregularVerbs : allVerbs;
+      activePool = irregularVerbs;
     } else if (type === "regular") {
-      activePool = regularVerbs.length > 0 ? regularVerbs : allVerbs;
+      activePool = regularVerbs;
     } else {
       activePool = allVerbs;
     }
@@ -529,7 +507,6 @@
       });
     }
 
-    // Sync radio in settings modal
     var radio = document.querySelector('input[name="verb-type-radio"][value="' + type + '"]');
     if (radio) radio.checked = true;
   }
@@ -938,12 +915,8 @@
     // 3. Quiz Buttons
     if (dom.checkBtn) {
       dom.checkBtn.addEventListener("click", function () {
-        if (currentMode === "choice") {
-          nextQuestion();
-        } else if (!isAnswerChecked) {
+        if (currentMode === "input" && !isAnswerChecked) {
           checkInputAnswer();
-        } else {
-          nextQuestion();
         }
       });
     }

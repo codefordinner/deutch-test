@@ -47,6 +47,12 @@
     },
     delete: function (url) {
       return request(url, { method: "DELETE" });
+    },
+    getWords: function () {
+      return request("/api/words", { method: "GET" });
+    },
+    getCategories: function () {
+      return request("/api/categories", { method: "GET" });
     }
   };
 })(window);

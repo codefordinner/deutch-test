@@ -33,7 +33,7 @@
         <p class="prev-result" id="num-prev-result" aria-live="polite"></p>
         <p class="qmode" id="num-qmode">Число → слово</p>
         <p class="question" id="num-question">7</p>
-        <input class="answer-input" id="num-answer" type="text" placeholder="Введите ответ" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Ваш ответ">
+        <input class="answer-input" id="num-answer" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Ваш ответ">
         <div class="umlauts">
           <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ä" aria-label="Вставить ä">ä</button>
           <button type="button" class="umlaut-btn" data-target="num-answer" data-char="ö" aria-label="Вставить ö">ö</button>
@@ -71,7 +71,7 @@
         <p class="prev-result" id="word-prev-result" aria-live="polite"></p>
         <p class="qmode" id="word-qmode">Немецкий → русский</p>
         <p class="question" id="word-question">—</p>
-        <input class="answer-input" id="word-answer" type="text" placeholder="Введите ответ" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Ваш ответ">
+        <input class="answer-input" id="word-answer" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Ваш ответ">
         <div class="umlauts">
           <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ä" aria-label="Вставить ä">ä</button>
           <button type="button" class="umlaut-btn" data-target="word-answer" data-char="ö" aria-label="Вставить ö">ö</button>
@@ -456,9 +456,9 @@
     <div class="settings">
       <p class="label">Категория глаголов</p>
       <div class="row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-        <label><input type="radio" name="verb-type-radio" value="irregular" checked>⚡ <b>Неправильные глаголы</b> (40 слов)</label>
-        <label><input type="radio" name="verb-type-radio" value="regular">📘 <b>Обычные глаголы</b> (26 слов)</label>
-        <label><input type="radio" name="verb-type-radio" value="all">🌟 <b>Все глаголы</b> (66 слов)</label>
+        <label><input type="radio" name="verb-type-radio" value="irregular" checked>⚡ <b>Неправильные глаголы</b> (<span id="verb-count-irreg">40</span>)</label>
+        <label><input type="radio" name="verb-type-radio" value="regular">📘 <b>Обычные глаголы</b> (<span id="verb-count-reg">26</span>)</label>
+        <label><input type="radio" name="verb-type-radio" value="all">🌟 <b>Все глаголы</b> (<span id="verb-count-all">66</span>)</label>
       </div>
     </div>
 
