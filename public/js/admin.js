@@ -784,7 +784,7 @@
     const femininePlural = wordModalFemininePlural ? (wordModalFemininePlural.value.trim() || null) : null;
     const praeteritum = wordModalPraeteritum ? (wordModalPraeteritum.value.trim() || null) : null;
     const praesens = wordModalPraesens ? (wordModalPraesens.value.trim() || null) : null;
-    const hilfsverb = wordModalHilfsverb ? (wordModalHilfsverb.value || "haben") : null;
+    const rawHilfsverb = wordModalHilfsverb ? (wordModalHilfsverb.value || "haben") : null;
     const partizip2 = wordModalPartizip2 ? (wordModalPartizip2.value.trim() || null) : null;
 
     if (!categoryId) {
@@ -797,6 +797,14 @@
       else wordModalRu.focus();
       return;
     }
+
+    // Determine if the target category is a verb category
+    const selectedCat = categories.find(c => String(c.id) === String(categoryId));
+    const catNameLower = selectedCat ? (selectedCat.name || "").toLowerCase() : "";
+    const isVerbCategory = categoryId === "cat_irregular_verbs" || categoryId === "cat_regular_verbs" || catNameLower.includes("глагол") || catNameLower.includes("verb");
+
+    // Only save hilfsverb if it is a verb category OR at least one verb form is provided
+    const hilfsverb = (isVerbCategory || praeteritum || praesens || partizip2) ? rawHilfsverb : null;
 
     try {
       const payload = {
@@ -1068,7 +1076,8 @@
 
     if (catId === "cat_irregular_verbs" || catId === "cat_regular_verbs") return true;
     if (catName.includes("глагол") || catName.includes("verb")) return true;
-    if (w.praeteritum || w.partizip2 || w.praesens || w.hilfsverb) return true;
+    // Having hilfsverb alone does NOT make a word a verb unless it is in a verb category or has other verb forms specified
+    if (w.praeteritum || w.partizip2 || w.praesens) return true;
 
     return false;
   }
