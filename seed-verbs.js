@@ -183,17 +183,6 @@ async function seed() {
     }
   }
 
-  // Update data/db.json backup so fallback also contains all categories & verbs
-  const dbJsonPath = path.join(__dirname, "data", "db.json");
-  try {
-    const allCats = await prisma.category.findMany();
-    const allWords = await prisma.word.findMany();
-    fs.writeFileSync(dbJsonPath, JSON.stringify({ categories: allCats, words: allWords }, null, 2), "utf-8");
-    console.log("[Seed] Updated data/db.json successfully!");
-  } catch (err) {
-    console.warn("[Seed] Warning updating db.json:", err.message);
-  }
-
   console.log(`[Seed] Successfully seeded ${IRREGULAR_VERBS.length} irregular verbs and ${REGULAR_VERBS.length} regular verbs.`);
 }
 

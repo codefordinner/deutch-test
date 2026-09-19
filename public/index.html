@@ -141,10 +141,10 @@
 
         <!-- Shared Umlauts bar for typing -->
         <div class="umlauts" id="verb-umlauts-bar">
-          <button type="button" class="verb-umlaut-btn umlaut-btn" data-char="ä" aria-label="Вставить ä">ä</button>
-          <button type="button" class="verb-umlaut-btn umlaut-btn" data-char="ö" aria-label="Вставить ö">ö</button>
-          <button type="button" class="verb-umlaut-btn umlaut-btn" data-char="ü" aria-label="Вставить ü">ü</button>
-          <button type="button" class="verb-umlaut-btn umlaut-btn" data-char="ß" aria-label="Вставить ß">ß</button>
+          <button type="button" class="verb-umlaut-btn umlaut-btn" data-target="verb-answer" data-char="ä" aria-label="Вставить ä">ä</button>
+          <button type="button" class="verb-umlaut-btn umlaut-btn" data-target="verb-answer" data-char="ö" aria-label="Вставить ö">ö</button>
+          <button type="button" class="verb-umlaut-btn umlaut-btn" data-target="verb-answer" data-char="ü" aria-label="Вставить ü">ü</button>
+          <button type="button" class="verb-umlaut-btn umlaut-btn" data-target="verb-answer" data-char="ß" aria-label="Вставить ß">ß</button>
         </div>
 
         <!-- Quiz standard buttons -->
@@ -619,18 +619,6 @@
   </div>
 </div>
 
-<script src="/js/api.js"></script>
-<script src="/js/umlauts.js"></script>
-<script src="/js/quiz-engine.js"></script>
-<script src="/js/numbers-generator.js"></script>
-<script src="/js/numbers.js"></script>
-<script src="/js/words-srs.js"></script>
-<script src="/js/words.js"></script>
-<script src="/js/verbs-data.js"></script>
-<script src="/js/verbs.js"></script>
-<script src="/js/time-generator.js"></script>
-<script src="/js/time.js"></script>
-<script src="/js/tabs.js"></script>
-<script src="/js/settings-modal.js"></script>
+<script type="module" src="/js/trainer/index.js"></script>
 </body>
 </html>

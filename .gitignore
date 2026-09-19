@@ -1,7 +1,20 @@
-.git
+# Node dependencies
+node_modules
 .env
 *.pem
 *.key
-node_modules
-prisma/prisma/*.db
-prisma/prisma/*.db-journal
+.DS_Store
+npm-debug.log*
+
+# SQLite Databases & Journals (never commit or push DB binaries to git)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+prisma/*.db
+prisma/*.db-journal
+data/*.db
+data/*.db-journal
+

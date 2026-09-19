@@ -21,45 +21,56 @@ class WordController {
   }
 
   async createWord(req, res, next) {
-    const categoryId = req.params.id || req.body.categoryId;
-    const de = (req.body.de || "").trim();
-    const ru = (req.body.ru || "").trim();
-    const plural = req.body.plural !== undefined ? (req.body.plural || "").trim() : null;
-    const feminine = req.body.feminine !== undefined ? (req.body.feminine || "").trim() : null;
-    const femininePlural = req.body.femininePlural !== undefined ? (req.body.femininePlural || "").trim() : null;
-    const praeteritum = req.body.praeteritum !== undefined ? (req.body.praeteritum || "").trim() : null;
-    const partizip2 = req.body.partizip2 !== undefined ? (req.body.partizip2 || "").trim() : null;
-    const hilfsverb = req.body.hilfsverb !== undefined ? (req.body.hilfsverb || "").trim() : null;
-    const praesens = req.body.praesens !== undefined ? (req.body.praesens || "").trim() : null;
-    const praesensIch = req.body.praesensIch !== undefined ? (req.body.praesensIch || "").trim() : null;
-    const praesensDu = req.body.praesensDu !== undefined ? (req.body.praesensDu || "").trim() : null;
-    const praesensEr = req.body.praesensEr !== undefined ? (req.body.praesensEr || "").trim() : null;
-    const praesensWir = req.body.praesensWir !== undefined ? (req.body.praesensWir || "").trim() : null;
-    const praesensIhr = req.body.praesensIhr !== undefined ? (req.body.praesensIhr || "").trim() : null;
-    const praesensSie = req.body.praesensSie !== undefined ? (req.body.praesensSie || "").trim() : null;
-    const force = req.query.force === "true" || req.body.force === true;
+    const data = req.validatedWord || {
+      categoryId: req.params.id || req.body.categoryId,
+      de: (req.body.de || "").trim(),
+      ru: (req.body.ru || "").trim(),
+      plural: req.body.plural !== undefined ? (req.body.plural || "").trim() || null : null,
+      feminine: req.body.feminine !== undefined ? (req.body.feminine || "").trim() || null : null,
+      femininePlural: req.body.femininePlural !== undefined ? (req.body.femininePlural || "").trim() || null : null,
+      praeteritum: req.body.praeteritum !== undefined ? (req.body.praeteritum || "").trim() || null : null,
+      partizip2: req.body.partizip2 !== undefined ? (req.body.partizip2 || "").trim() || null : null,
+      hilfsverb: req.body.hilfsverb !== undefined ? (req.body.hilfsverb || "").trim() || null : null,
+      praesens: req.body.praesens !== undefined ? (req.body.praesens || "").trim() || null : null,
+      praesensIch: req.body.praesensIch !== undefined ? (req.body.praesensIch || "").trim() || null : null,
+      praesensDu: req.body.praesensDu !== undefined ? (req.body.praesensDu || "").trim() || null : null,
+      praesensEr: req.body.praesensEr !== undefined ? (req.body.praesensEr || "").trim() || null : null,
+      praesensWir: req.body.praesensWir !== undefined ? (req.body.praesensWir || "").trim() || null : null,
+      praesensIhr: req.body.praesensIhr !== undefined ? (req.body.praesensIhr || "").trim() || null : null,
+      praesensSie: req.body.praesensSie !== undefined ? (req.body.praesensSie || "").trim() || null : null,
+      force: req.query.force === "true" || req.body.force === true
+    };
 
-    if (!categoryId) {
+    if (!data.categoryId) {
       return res.status(400).json({ error: "Категория обязательна" });
     }
 
-    if (!de || !ru) {
+    if (!data.de || !data.ru) {
       return res.status(400).json({ error: "Нужны оба поля: de и ru" });
     }
 
     try {
-      const word = await wordService.createWord(categoryId, de, ru, plural, feminine, femininePlural, force, {
-        praeteritum,
-        partizip2,
-        hilfsverb,
-        praesens,
-        praesensIch,
-        praesensDu,
-        praesensEr,
-        praesensWir,
-        praesensIhr,
-        praesensSie
-      });
+      const word = await wordService.createWord(
+        data.categoryId,
+        data.de,
+        data.ru,
+        data.plural,
+        data.feminine,
+        data.femininePlural,
+        data.force,
+        {
+          praeteritum: data.praeteritum,
+          partizip2: data.partizip2,
+          hilfsverb: data.hilfsverb,
+          praesens: data.praesens,
+          praesensIch: data.praesensIch,
+          praesensDu: data.praesensDu,
+          praesensEr: data.praesensEr,
+          praesensWir: data.praesensWir,
+          praesensIhr: data.praesensIhr,
+          praesensSie: data.praesensSie
+        }
+      );
       res.status(201).json(word);
     } catch (error) {
       if (error.status === 404) {

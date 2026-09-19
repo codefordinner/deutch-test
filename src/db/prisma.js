@@ -21,16 +21,25 @@ function initializeDatabase() {
 
   // Safe check: if the SQLite database file exists, do NOT run push, migration or seeding
   let dbExists = false;
+  let targetPath = "";
   if (config.databaseUrl.startsWith("file:")) {
-    const relativePath = config.databaseUrl.slice(5);
-    const dbFileResolved = path.resolve(rootDir, relativePath);
-    if (fs.existsSync(dbFileResolved)) {
+    const rawPath = config.databaseUrl.slice(5);
+    targetPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(rootDir, rawPath);
+    if (fs.existsSync(targetPath)) {
+      dbExists = true;
+    }
+  }
+
+  // Also check standard locations (prisma/dev.db or data/dev.db)
+  if (!dbExists) {
+    const fallbackPrisma = path.join(rootDir, "prisma", "dev.db");
+    const fallbackData = path.join(rootDir, "data", "dev.db");
+    if (fs.existsSync(fallbackPrisma) || fs.existsSync(fallbackData)) {
       dbExists = true;
     }
   }
 
   if (dbExists) {
-    console.log("[Database Init] Database file exists. Skipping migrations and seeding to prevent data overrides.");
     return;
   }
 

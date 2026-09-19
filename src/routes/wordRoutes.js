@@ -1,11 +1,12 @@
 const express = require("express");
 const wordController = require("../controllers/wordController");
 const { requireAdmin } = require("../middlewares/authMiddleware");
+const { validateWord } = require("../middlewares/validator");
 
 const router = express.Router();
 
 router.get("/", (req, res, next) => wordController.getAllWords(req, res, next));
-router.post("/", requireAdmin, (req, res, next) => wordController.createWord(req, res, next));
+router.post("/", requireAdmin, validateWord, (req, res, next) => wordController.createWord(req, res, next));
 router.get("/check-duplicate", requireAdmin, (req, res, next) => wordController.checkDuplicate(req, res, next));
 router.post("/bulk-import", requireAdmin, (req, res, next) => wordController.bulkImport(req, res, next));
 router.put("/:id", requireAdmin, (req, res, next) => wordController.updateWord(req, res, next));
